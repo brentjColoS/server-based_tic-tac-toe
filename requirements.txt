@@ -1,0 +1,1 @@
+Any computer with python3, an open internet connection, and a terminal should do!
