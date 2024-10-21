@@ -1,6 +1,7 @@
 import socket
 import logging
 import sys
+import json
 
 # Logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -12,11 +13,16 @@ def start_client(server_host, server_port):
         client_socket.connect((server_host, server_port))
         logging.info(f"Connected to server at {server_host}:{server_port}")
 
+        # Send join message
+        send_message(client_socket, {"type": "join"})
+
         while True:
             message = input("Enter a message to send (or 'exit' to quit): ")
             if message.lower() == 'exit':
+                send_message(client_socket, {"type": "quit"})
                 break
-            client_socket.send(message.encode('utf-8'))
+            
+            send_message(client_socket, {"type": "chat", "message": message})
             response = client_socket.recv(1024).decode('utf-8')
             logging.info(f"Received from server: {response}")
 
@@ -27,6 +33,9 @@ def start_client(server_host, server_port):
     finally:
         client_socket.close()
         logging.info("Disconnected from server.")
+
+def send_message(client_socket, message):
+    client_socket.send(json.dumps(message).encode('utf-8'))
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
