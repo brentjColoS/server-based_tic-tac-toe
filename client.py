@@ -3,13 +3,20 @@ import logging
 import sys
 import json
 import threading
+import argparse
 
 # Logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Global variable for player ID
 player_id = None
+game_state = {
+    "board": [[' ' for _ in range(3)] for _ in range(3)],
+    "turn": None,
+    "winner": None
+}
 
+# Handle incoming server messages
 def handle_server_messages(client_socket):
     """Handle incoming messages from the server."""
     while True:
@@ -19,27 +26,43 @@ def handle_server_messages(client_socket):
         data = json.loads(message)
         logging.info(f"Received from server: {data}")
         if data['type'] == 'MOVE':
-            # Render the move on the game board
             render_game_state(data)
+        elif data['type'] == 'WIN':
+            logging.info(data['message'])
+            break
+        elif data['type'] == 'DRAW':
+            logging.info(data['message'])
+            break
         elif data['type'] == 'JOIN':
-            logging.info(data['message'])  # This will now log correctly
-        elif data['type'] == 'CHAT':
-            logging.info(data['message'])
-        elif data['type'] == 'QUIT':
-            logging.info(data['message'])
-        elif data['type'] == 'STATE':
-            # Update local game state based on server state
-            update_game_state(data)
+            logging.info(f"Welcome {data['address']}! You are playing as {data['player_id']}.")
 
+# Display the game board
 def render_game_state(data):
     """Placeholder for rendering game state on the client."""
-    # Here you can implement your rendering logic
-    logging.info(f"Rendering move: {data}")
+    game_state["board"] = data.get('board', game_state["board"])
+    logging.info("\n".join(["|".join(row) for row in game_state["board"]]))
+    logging.info(f"Current turn: {data.get('turn')}")
+    if game_state["winner"]:
+        logging.info(f"Game over. Winner: {game_state['winner']}")
 
-def update_game_state(data):
-    """Update the local game state."""
-    # Here you can implement your game state update logic
-    logging.info(f"Updating game state with: {data}")
+# Send a move to the server
+def send_move(client_socket):
+    """Get user input for the move and send it to the server."""
+    while True:
+        try:
+            move = input("Enter your move (row col): ").split()
+            row, col = int(move[0]), int(move[1])
+            if game_state["board"][row][col] != ' ':
+                logging.warning("That space is already taken. Try again.")
+                continue
+            send_message(client_socket, {"type": "MOVE", "position": [row, col]})
+            break
+        except ValueError:
+            logging.warning("Invalid input. Enter row and column as numbers (e.g., 1 2).")
+
+# Send messages to the server
+def send_message(client_socket, message):
+    client_socket.send(json.dumps(message).encode('utf-8'))
 
 # Client starter
 def start_client(server_host, server_port):
@@ -52,15 +75,11 @@ def start_client(server_host, server_port):
         threading.Thread(target=handle_server_messages, args=(client_socket,), daemon=True).start()
 
         # Send join message
-        send_message(client_socket, {"type": "JOIN"})  # Change this to match the server expectation
+        send_message(client_socket, {"type": "join"})
 
+        # Wait for the game to start and make moves
         while True:
-            message = input("Enter a message to send (or 'exit' to quit): ")
-            if message.lower() == 'exit':
-                send_message(client_socket, {"type": "QUIT"})
-                break
-            
-            send_message(client_socket, {"type": "CHAT", "message": message})
+            send_move(client_socket)
 
     except (ConnectionRefusedError, TimeoutError) as e:
         logging.error(f"Connection error: {e}")
@@ -70,14 +89,10 @@ def start_client(server_host, server_port):
         client_socket.close()
         logging.info("Disconnected from server.")
 
-def send_message(client_socket, message):
-    client_socket.send(json.dumps(message).encode('utf-8'))
-
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: python client.py <server_host> <server_port>")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description='Start a Tic-Tac-Toe client')
+    parser.add_argument('-i', '--host', required=True, help='Server IP/DNS')
+    parser.add_argument('-p', '--port', type=int, required=True, help='Server port')
+    args = parser.parse_args()
 
-    server_host = sys.argv[1]
-    server_port = int(sys.argv[2])
-    start_client(server_host, server_port)
+    start_client(args.host, args.port)
