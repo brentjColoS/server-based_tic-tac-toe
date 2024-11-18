@@ -32,11 +32,11 @@ def handle_client(client_socket, client_address):
 
     # Assign unique player ID
     player_id = len(clients)  # Simple player ID based on order of connection
-    player_turns.append(player_address)
+    player_turns.append(client_address)  # Change from player_address to client_address
     
     try:
         # Notify all clients about the new player
-        broadcast({"type": "JOIN", "player_id": player_id, "address": str(client_address)})
+        broadcast({"type": "JOIN", "player_id": player_id, "address": str(client_address), "message": f"{client_address} has joined the game."})
 
         while True:
             message = client_socket.recv(1024).decode('utf-8')
@@ -70,6 +70,7 @@ def handle_message(data, client_address, player_id):
             position = data.get('position')
             game_state["board"].append({"player_id": player_id, "position": position})
             # Rotate turn
+            global current_turn_index  # Use global to modify the index
             current_turn_index = (current_turn_index + 1) % len(player_turns)
             game_state["turn"] = player_turns[current_turn_index]
             return {"type": "MOVE", "message": f"{client_address} moved to {position}."}
