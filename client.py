@@ -22,7 +22,7 @@ def handle_server_messages(client_socket):
             # Render the move on the game board
             render_game_state(data)
         elif data['type'] == 'JOIN':
-            logging.info(data['message'])
+            logging.info(data['message'])  # This will now log correctly
         elif data['type'] == 'CHAT':
             logging.info(data['message'])
         elif data['type'] == 'QUIT':
@@ -52,15 +52,15 @@ def start_client(server_host, server_port):
         threading.Thread(target=handle_server_messages, args=(client_socket,), daemon=True).start()
 
         # Send join message
-        send_message(client_socket, {"type": "join"})
+        send_message(client_socket, {"type": "JOIN"})  # Change this to match the server expectation
 
         while True:
             message = input("Enter a message to send (or 'exit' to quit): ")
             if message.lower() == 'exit':
-                send_message(client_socket, {"type": "quit"})
+                send_message(client_socket, {"type": "QUIT"})
                 break
             
-            send_message(client_socket, {"type": "chat", "message": message})
+            send_message(client_socket, {"type": "CHAT", "message": message})
 
     except (ConnectionRefusedError, TimeoutError) as e:
         logging.error(f"Connection error: {e}")
