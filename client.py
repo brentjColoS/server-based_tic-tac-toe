@@ -5,6 +5,7 @@ import sys
 import uuid
 
 is_my_turn = False  # Track if it's this player's turn
+client_id = None  # Unique ID for this client
 
 def receive_messages(sock):
     global is_my_turn
@@ -29,23 +30,23 @@ def handle_server_message(data):
     elif message_type == "MOVE":
         print(f"\n{data.get('message', 'A move was made.')}")
         print_board(data.get("board"))
-        is_my_turn = data.get("turn") == client_id  # Update turn based on server message
+        is_my_turn = data.get("turn") == client_id
     elif message_type == "WIN":
         print(f"\n{data.get('message', 'Game over.')}")
         print_board(data.get("board"))
         is_my_turn = False  # Game is over
     elif message_type == "DRAW":
-        print(f"\n{data.get('message', 'It\'s a draw.')}")
+        print(f"\n{data.get('message', 'It is a draw.')}")
         print_board(data.get("board"))
         is_my_turn = False  # Game is over
     elif message_type == "ERROR":
         print(f"\n{data.get('message', 'An error occurred.')}")
-    elif message_type == "QUIT":
-        print(f"\n{data.get('message', 'A player quit the game.')}")
+    elif message_type == "CHAT":
+        print(f"\n{data.get('message', '')}")
     elif message_type == "STATE":
         print("\nGame state updated.")
         print_board(data.get("board"))
-        is_my_turn = data.get("turn") == client_id  # Update turn based on server message
+        is_my_turn = data.get("turn") == client_id
     else:
         print("\nUnknown message type received:", data)
 
@@ -95,6 +96,7 @@ def main():
 
         while True:
             if is_my_turn:
+                print_board(game_state["board"])  # Display the board before asking for input
                 user_input = input("\nEnter your move as row,col (or type 'chat:<message>' to chat): ")
                 if user_input.lower() == 'quit':
                     print("Exiting the game.")
@@ -111,7 +113,7 @@ def main():
                         print("\nInvalid input. Please enter row and column as numbers separated by a comma.")
             else:
                 print("\nWaiting for the other player's move...")
-                threading.Event().wait(2)  # Pause briefly to avoid spamming
+                threading.Event().wait(2)  # Small delay to avoid spamming
 
     except Exception as e:
         print(f"Error connecting to server: {e}")

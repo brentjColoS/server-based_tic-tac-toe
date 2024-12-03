@@ -37,12 +37,13 @@ def handle_client(client_socket, client_address):
     player_turns.append(unique_id)
 
     if len(player_turns) == 1:
-        game_state["turn"] = unique_id  # Set the first player as the starting turn
+        game_state["turn"] = unique_id  # First player starts the game
 
     try:
         broadcast({
             "type": "JOIN",
             "message": f"Client {unique_id} joined as {player_id}.",
+            "board": game_state["board"],
             "turn": game_state["turn"]
         })
 
@@ -80,16 +81,18 @@ def handle_disconnection(unique_id):
         else:
             game_state["turn"] = None
 
-    broadcast({"type": "QUIT", "message": f"Client {unique_id} has left the game.", "turn": game_state["turn"]})
+    broadcast({
+        "type": "QUIT",
+        "message": f"Client {unique_id} has left the game.",
+        "board": game_state["board"],
+        "turn": game_state["turn"]
+    })
 
 def handle_message(data, unique_id, player_id):
     global current_turn_index
     message_type = data.get("type")
 
-    if message_type == MESSAGE_TYPES["JOIN"]:
-        return {"type": "JOIN", "message": f"Client {unique_id} has joined the game.", "turn": game_state["turn"]}
-
-    elif message_type == MESSAGE_TYPES["MOVE"]:
+    if message_type == MESSAGE_TYPES["MOVE"]:
         if unique_id == game_state["turn"]:
             position = data.get('position')
             if position and isinstance(position, list) and len(position) == 2:
@@ -126,19 +129,16 @@ def handle_message(data, unique_id, player_id):
                             "message": f"{player_id} moved to {position}."
                         }
                     else:
-                        return {"type": "ERROR", "message": "Invalid move!", "turn": game_state["turn"]}
+                        return {"type": "ERROR", "message": "Invalid move!", "board": game_state["board"], "turn": game_state["turn"]}
                 except ValueError:
-                    return {"type": "ERROR", "message": "Invalid position format!", "turn": game_state["turn"]}
+                    return {"type": "ERROR", "message": "Invalid position format!", "board": game_state["board"], "turn": game_state["turn"]}
         else:
-            return {"type": "ERROR", "message": "It's not your turn!", "turn": game_state["turn"]}
+            return {"type": "ERROR", "message": "It's not your turn!", "board": game_state["board"], "turn": game_state["turn"]}
 
     elif message_type == MESSAGE_TYPES["CHAT"]:
         return {"type": "CHAT", "message": f"{player_id} says: {data.get('message', '')}"}
 
-    elif message_type == MESSAGE_TYPES["QUIT"]:
-        return {"type": "QUIT", "message": f"Client {unique_id} has left the game.", "turn": game_state["turn"]}
-
-    return {"type": "ERROR", "message": "Unknown message type.", "turn": game_state["turn"]}
+    return {"type": "ERROR", "message": "Unknown message type.", "board": game_state["board"], "turn": game_state["turn"]}
 
 def check_winner(player_id):
     for i in range(3):
