@@ -43,6 +43,7 @@ def handle_client(client_socket, client_address):
         broadcast({
             "type": "JOIN",
             "message": f"Client {unique_id} joined as {player_id}.",
+            "player_id": player_id,
             "board": game_state["board"],
             "turn": game_state["turn"]
         })
@@ -183,3 +184,4 @@ if __name__ == "__main__":
     parser.add_argument('-p', '--port', type=int, required=True, help='Port to listen on')
     args = parser.parse_args()
     start_server(port=args.port)
+    

@@ -27,9 +27,12 @@ def handle_server_message(data):
     message_type = data.get("type")
 
     if message_type == "JOIN":
-        print(f"\n{data.get('message', 'A player joined.')}")
+        player_role = "You" if data.get("turn") == client_id else "Another player"
+        print(f"\n({player_role}) Client {data.get('turn')} joined as {data.get('player_id', 'X')}.")
         game_state = data.get("board", [])
         print_board(game_state)
+        if data.get("turn") == client_id:
+            is_my_turn = True
     elif message_type == "MOVE":
         print(f"\n{data.get('message', 'A move was made.')}")
         game_state = data.get("board", [])
@@ -41,7 +44,7 @@ def handle_server_message(data):
         print_board(game_state)
         is_my_turn = False  # Game is over
     elif message_type == "DRAW":
-        print(f"\n{data.get('message', 'It is a draw.')}")
+        print(f"\n{data.get('message', 'It\'s a draw.')}")
         game_state = data.get("board", [])
         print_board(game_state)
         is_my_turn = False  # Game is over
@@ -116,11 +119,12 @@ def main():
                     try:
                         row, col = map(int, user_input.split(','))
                         send_move(sock, [row, col])
+                        is_my_turn = False  # Set to False after making the move
                     except ValueError:
                         print("\nInvalid input. Please enter row and column as numbers separated by a comma.")
             else:
-                print("\nWaiting for the other player's move...")
-                threading.Event().wait(5)  # Wait until server notifies it is this player's turn
+                print("\nWaiting for the other player's move...")  # Display once
+                threading.Event().wait()  # Wait indefinitely for server update
 
     except Exception as e:
         print(f"Error connecting to server: {e}")
