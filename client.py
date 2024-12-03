@@ -29,7 +29,7 @@ def handle_server_message(data):
         print(f"\n{data.get('message', 'Game over.')}")
         print_board(data.get("board"))
     elif message_type == "DRAW":
-        print(f"\n{data.get('message', 'It\'s a draw.')}")
+        print(f"\n{data.get('message', 'It is a draw.')}")
         print_board(data.get("board"))
     elif message_type == "ERROR":
         print(f"\n{data.get('message', 'An error occurred.')}")
@@ -39,10 +39,9 @@ def handle_server_message(data):
         print("\nGame state updated.")
         print_board(data.get("board"))
     else:
-        # Suppress unknown message errors for handled cases
-        if message_type is None or message_type in MESSAGE_TYPES:
-            return
-        print("\nUnknown message type received:", data)
+        # Suppress unknown message errors for known message types
+        print(f"Unhandled message type: {message_type}")
+        return
 
 def send_move(sock, position):
     try:
