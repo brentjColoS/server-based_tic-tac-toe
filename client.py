@@ -21,20 +21,20 @@ def handle_server_message(data):
     message_type = data.get("type")
 
     if message_type == "JOIN":
-        print(f"\n{data.get('message', 'A player joined.')}")
+        print("\n" + data.get("message", "A player joined."))
     elif message_type == "MOVE":
-        print(f"\n{data.get('message', 'A move was made.')}")
+        print("\n" + data.get("message", "A move was made."))
         print_board(data.get("board"))
     elif message_type == "WIN":
-        print(f"\n{data.get('message', 'Game over.')}")
+        print("\n" + data.get("message", "Game over."))
         print_board(data.get("board"))
     elif message_type == "DRAW":
-        print(f"\n{data.get('message', 'It\'s a draw.')}")
+        print("\n" + data.get("message", "It's a draw."))
         print_board(data.get("board"))
     elif message_type == "ERROR":
-        print(f"\n{data.get('message', 'An error occurred.')}")
+        print("\n" + data.get("message", "An error occurred."))
     elif message_type == "QUIT":
-        print(f"\n{data.get('message', 'A player quit the game.')}")
+        print("\n" + data.get("message", "A player quit the game."))
     elif message_type == "STATE":
         print("\nGame state updated.")
         print_board(data.get("board"))
