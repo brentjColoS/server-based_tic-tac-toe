@@ -2,6 +2,7 @@ import socket
 import threading
 import json
 import sys
+import uuid
 
 def receive_messages(sock):
     while True:
@@ -51,7 +52,7 @@ def print_board(board):
     if board:
         print("\nCurrent Board:")
         for row in board:
-            print(" # | # | # ".join(cell if cell != ' ' else '#' for cell in row))
+            print(" | ".join(cell if cell != '#' else ' ' for cell in row))
             print("-" * 11)
     else:
         print("No board to display.")
@@ -67,6 +68,11 @@ def main():
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect((args.host, args.port))
         print("Connected to the server.")
+
+        # Generate a unique ID for this client
+        client_id = str(uuid.uuid4())
+        message = json.dumps({"type": "JOIN", "client_id": client_id})
+        sock.send(message.encode('utf-8'))
 
         threading.Thread(target=receive_messages, args=(sock,), daemon=True).start()
 
