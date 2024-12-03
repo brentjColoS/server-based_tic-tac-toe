@@ -21,24 +21,27 @@ def handle_server_message(data):
     message_type = data.get("type")
 
     if message_type == "JOIN":
-        print("\n" + data.get("message", "A player joined."))
+        print(f"\n{data.get('message', 'A player joined.')}")
     elif message_type == "MOVE":
-        print("\n" + data.get("message", "A move was made."))
+        print(f"\n{data.get('message', 'A move was made.')}")
         print_board(data.get("board"))
     elif message_type == "WIN":
-        print("\n" + data.get("message", "Game over."))
+        print(f"\n{data.get('message', 'Game over.')}")
         print_board(data.get("board"))
     elif message_type == "DRAW":
-        print("\n" + data.get("message", "It's a draw."))
+        print(f"\n{data.get('message', 'It\'s a draw.')}")
         print_board(data.get("board"))
     elif message_type == "ERROR":
-        print("\n" + data.get("message", "An error occurred."))
+        print(f"\n{data.get('message', 'An error occurred.')}")
     elif message_type == "QUIT":
-        print("\n" + data.get("message", "A player quit the game."))
+        print(f"\n{data.get('message', 'A player quit the game.')}")
     elif message_type == "STATE":
         print("\nGame state updated.")
         print_board(data.get("board"))
     else:
+        # Suppress unknown message errors for handled cases
+        if message_type is None or message_type in MESSAGE_TYPES:
+            return
         print("\nUnknown message type received:", data)
 
 def send_move(sock, position):
@@ -51,9 +54,10 @@ def send_move(sock, position):
 def print_board(board):
     if board:
         print("\nCurrent Board:")
-        for row in board:
+        for i, row in enumerate(board):
             print(" | ".join(cell if cell != '#' else ' ' for cell in row))
-            print("-" * 11)
+            if i < len(board) - 1:  # Skip adding dashes after the last row
+                print("-" * 11)
     else:
         print("No board to display.")
 
