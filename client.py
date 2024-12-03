@@ -31,12 +31,12 @@ def handle_server_message(data):
         player_id = data.get("player_id")
         print(f"\nAssigned ID: {client_id}, playing as {player_id}.")
         game_state = data.get("board", [])
-        print_board(game_state)
+        # print_board(game_state)
         if data.get("turn") == client_id:
             is_my_turn = True
     elif message_type == "JOIN":
         print(f"\n{data.get('message')}")
-        print_board(data.get("board"))
+        # print_board(data.get("board"))
     elif message_type == "MOVE":
         print(f"\n{data.get('message', 'A move was made.')}")
         game_state = data.get("board", [])
@@ -104,7 +104,7 @@ def main():
         threading.Thread(target=receive_messages, args=(sock,), daemon=True).start()
 
         while True:
-            if is_my_turn:
+            if is_my_turn is True:
                 print_board(game_state)  # Display the board before asking for input
                 user_input = input("\nEnter your move as row,col (or type 'chat:<message>' to chat): ")
                 if user_input.lower() == 'quit':
@@ -118,6 +118,7 @@ def main():
                     try:
                         row, col = map(int, user_input.split(','))
                         send_move(sock, [row, col])
+                        print("\n" + "Waiting for other Player's input...")
                         is_my_turn = False  # Set to False after making the move
                     except ValueError:
                         print("\nInvalid input. Please enter row and column as numbers separated by a comma.")
