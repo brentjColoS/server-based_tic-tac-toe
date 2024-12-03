@@ -44,7 +44,16 @@ def handle_client(client_socket, client_address):
         player_turns.append(unique_id)
 
         if len(player_turns) == 1:
-            game_state["turn"] = unique_id # First player starts the game
+            game_state["turn"] = unique_id  # First player starts the game
+
+        # Inform the client of their assigned ID and role
+        client_socket.send(json.dumps({
+            "type": "ASSIGN_ID",
+            "client_id": unique_id,
+            "player_id": player_id,
+            "board": game_state["board"],
+            "turn": game_state["turn"]
+        }).encode('utf-8'))
 
         broadcast({
             "type": "JOIN",
@@ -153,7 +162,7 @@ def handle_message(data, unique_id, player_id):
     elif message_type == MESSAGE_TYPES["CHAT"]:
         return {"type": "CHAT", "message": f"{player_id} says: {data.get('message', '')}"}
 
-    return {"type": "ERROR", "message": "", "board": game_state["board"], "turn": game_state["turn"]}
+    return {"type": "ERROR", "message": "Unknown message type.", "board": game_state["board"], "turn": game_state["turn"]}
 
 def check_winner(player_id):
     for i in range(3):
