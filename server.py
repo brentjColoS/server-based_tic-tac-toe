@@ -33,13 +33,19 @@ def handle_client(client_socket, client_address):
     unique_id = str(uuid.uuid4())
     clients[unique_id] = client_socket
 
-    player_id = 'X' if len(player_turns) % 2 == 0 else 'O'
-    player_turns.append(unique_id)
+    if len(player_turns) == 0:
+        player_id = 'X'  # First client gets X
+    elif len(player_turns) == 1:
+        player_id = 'O'  # Second client gets O
+    else:
+        player_id = None  # No more players allowed
 
-    if len(player_turns) == 1:
-        game_state["turn"] = unique_id  # First player starts the game
+    if player_id:
+        player_turns.append(unique_id)
 
-    try:
+        if len(player_turns) == 1:
+            game_state["turn"] = unique_id  # First player starts the game
+
         broadcast({
             "type": "JOIN",
             "message": f"Client {unique_id} joined as {player_id}.",
@@ -47,7 +53,15 @@ def handle_client(client_socket, client_address):
             "board": game_state["board"],
             "turn": game_state["turn"]
         })
+    else:
+        client_socket.send(json.dumps({
+            "type": "ERROR",
+            "message": "Game is full. Only two players allowed."
+        }).encode('utf-8'))
+        client_socket.close()
+        return
 
+    try:
         while True:
             message = client_socket.recv(1024).decode('utf-8')
             if not message:
@@ -184,4 +198,3 @@ if __name__ == "__main__":
     parser.add_argument('-p', '--port', type=int, required=True, help='Port to listen on')
     args = parser.parse_args()
     start_server(port=args.port)
-    

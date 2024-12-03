@@ -6,10 +6,11 @@ import uuid
 
 is_my_turn = False  # Track if it's this player's turn
 client_id = None  # Unique ID for this client
+player_id = None  # The role of this player ('X' or 'O')
 game_state = None  # Track the current game state
 
 def receive_messages(sock):
-    global is_my_turn, game_state
+    global is_my_turn, game_state, player_id
     while True:
         try:
             message = sock.recv(1024).decode('utf-8')
@@ -23,12 +24,14 @@ def receive_messages(sock):
             break
 
 def handle_server_message(data):
-    global is_my_turn, game_state
+    global is_my_turn, game_state, player_id
     message_type = data.get("type")
 
     if message_type == "JOIN":
-        player_role = "You" if data.get("turn") == client_id else "Another player"
-        print(f"\n({player_role}) Client {data.get('turn')} joined as {data.get('player_id', 'X')}.")
+        if data.get("player_id") == player_id:
+            print(f"\n(You) Client {client_id} joined as {player_id}.")
+        else:
+            print(f"\nAnother player joined as {data.get('player_id')}.")
         game_state = data.get("board", [])
         print_board(game_state)
         if data.get("turn") == client_id:
@@ -85,7 +88,7 @@ def print_board(board):
         print("No board to display.")
 
 def main():
-    global is_my_turn, client_id, game_state
+    global is_my_turn, client_id, player_id, game_state
     import argparse
     parser = argparse.ArgumentParser(description='Tic-Tac-Toe client')
     parser.add_argument('-H', '--host', type=str, required=True, help='Server host')
@@ -99,8 +102,8 @@ def main():
 
         # Generate a unique ID for this client
         client_id = str(uuid.uuid4())
-        message = json.dumps({"type": "JOIN", "client_id": client_id})
-        sock.send(message.encode('utf-8'))
+        join_message = json.dumps({"type": "JOIN", "client_id": client_id})
+        sock.send(join_message.encode('utf-8'))
 
         threading.Thread(target=receive_messages, args=(sock,), daemon=True).start()
 
@@ -124,7 +127,7 @@ def main():
                         print("\nInvalid input. Please enter row and column as numbers separated by a comma.")
             else:
                 print("\nWaiting for the other player's move...")  # Display once
-                threading.Event().wait()  # Wait indefinitely for server update
+                threading.Event().wait(5)  # Small delay to avoid spamming
 
     except Exception as e:
         print(f"Error connecting to server: {e}")
