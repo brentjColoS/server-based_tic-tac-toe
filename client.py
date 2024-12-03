@@ -21,25 +21,25 @@ def handle_server_message(data):
     message_type = data.get("type")
 
     if message_type == "JOIN":
-        print(data.get("message", "A player joined."))
+        print(f"\n{data.get('message', 'A player joined.')}")
     elif message_type == "MOVE":
-        print(data.get("message", "A move was made."))
+        print(f"\n{data.get('message', 'A move was made.')}")
         print_board(data.get("board"))
     elif message_type == "WIN":
-        print(data.get("message", "Game over."))
+        print(f"\n{data.get('message', 'Game over.')}")
         print_board(data.get("board"))
     elif message_type == "DRAW":
-        print(data.get("message", "It's a draw."))
+        print(f"\n{data.get('message', 'It\'s a draw.')}")
         print_board(data.get("board"))
     elif message_type == "ERROR":
-        print(data.get("message", "An error occurred."))
+        print(f"\n{data.get('message', 'An error occurred.')}")
     elif message_type == "QUIT":
-        print(data.get("message", "A player quit the game."))
+        print(f"\n{data.get('message', 'A player quit the game.')}")
     elif message_type == "STATE":
-        print("Game state updated.")
+        print("\nGame state updated.")
         print_board(data.get("board"))
     else:
-        print("Unknown message type received.")
+        print("\nUnknown message type received:", data)
 
 def send_move(sock, position):
     try:
@@ -77,7 +77,7 @@ def main():
         threading.Thread(target=receive_messages, args=(sock,), daemon=True).start()
 
         while True:
-            user_input = input("Enter your move as row,col (or type 'quit' to exit): ")
+            user_input = input("\nEnter your move as row,col (or type 'quit' to exit): ")
             if user_input.lower() == 'quit':
                 print("Exiting the game.")
                 sock.close()
@@ -87,7 +87,7 @@ def main():
                 row, col = map(int, user_input.split(','))
                 send_move(sock, [row, col])
             except ValueError:
-                print("Invalid input. Please enter row and column as numbers separated by a comma.")
+                print("\nInvalid input. Please enter row and column as numbers separated by a comma.")
 
     except Exception as e:
         print(f"Error connecting to server: {e}")
