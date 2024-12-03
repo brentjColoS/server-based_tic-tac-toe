@@ -36,8 +36,15 @@ def handle_client(client_socket, client_address):
     player_id = 'X' if len(player_turns) % 2 == 0 else 'O'
     player_turns.append(unique_id)
 
+    if len(player_turns) == 1:
+        game_state["turn"] = unique_id  # Set the first player as the starting turn
+
     try:
-        broadcast({"type": "JOIN", "player_id": player_id, "unique_id": unique_id})
+        broadcast({
+            "type": "JOIN",
+            "message": f"Client {unique_id} joined as {player_id}.",
+            "turn": game_state["turn"]
+        })
 
         while True:
             message = client_socket.recv(1024).decode('utf-8')
@@ -57,21 +64,33 @@ def handle_client(client_socket, client_address):
         logging.error(f"Error with client {unique_id}: {traceback.format_exc()}")
     finally:
         client_socket.close()
-        if unique_id in clients:
-            del clients[unique_id]
-        if unique_id in player_turns:
-            player_turns.remove(unique_id)
-        broadcast({"type": "QUIT", "message": f"Client {unique_id} has left the game."})
+        handle_disconnection(unique_id)
+
+def handle_disconnection(unique_id):
+    global current_turn_index
+
+    if unique_id in clients:
+        del clients[unique_id]
+    if unique_id in player_turns:
+        player_turns.remove(unique_id)
+
+        if len(player_turns) > 0:
+            current_turn_index %= len(player_turns)
+            game_state["turn"] = player_turns[current_turn_index]
+        else:
+            game_state["turn"] = None
+
+    broadcast({"type": "QUIT", "message": f"Client {unique_id} has left the game.", "turn": game_state["turn"]})
 
 def handle_message(data, unique_id, player_id):
     global current_turn_index
     message_type = data.get("type")
 
     if message_type == MESSAGE_TYPES["JOIN"]:
-        return {"type": "JOIN", "message": f"Client {unique_id} has joined the game."}
+        return {"type": "JOIN", "message": f"Client {unique_id} has joined the game.", "turn": game_state["turn"]}
 
     elif message_type == MESSAGE_TYPES["MOVE"]:
-        if unique_id == player_turns[current_turn_index]:
+        if unique_id == game_state["turn"]:
             position = data.get('position')
             if position and isinstance(position, list) and len(position) == 2:
                 try:
@@ -79,28 +98,47 @@ def handle_message(data, unique_id, player_id):
                     row, col = row - 1, col - 1  # Convert 1-based to 0-based indexing
                     if 0 <= row < 3 and 0 <= col < 3 and game_state["board"][row][col] == '#':
                         game_state["board"][row][col] = player_id
-                        current_turn_index = (current_turn_index + 1) % len(player_turns)
-                        game_state["turn"] = player_turns[current_turn_index]
 
                         if check_winner(player_id):
                             game_state["winner"] = player_id
-                            return {"type": "WIN", "board": game_state["board"], "message": f"{player_id} wins!"}
+                            return {
+                                "type": "WIN",
+                                "board": game_state["board"],
+                                "message": f"{player_id} wins!",
+                                "turn": None
+                            }
                         elif check_draw():
                             game_state["winner"] = "Draw"
-                            return {"type": "DRAW", "board": game_state["board"], "message": "It's a draw!"}
+                            return {
+                                "type": "DRAW",
+                                "board": game_state["board"],
+                                "message": "It's a draw!",
+                                "turn": None
+                            }
 
-                        return {"type": "MOVE", "board": game_state["board"], "turn": game_state["turn"], "message": f"{player_id} moved to {position}."}
+                        # Update turn
+                        current_turn_index = (current_turn_index + 1) % len(player_turns)
+                        game_state["turn"] = player_turns[current_turn_index]
+                        return {
+                            "type": "MOVE",
+                            "board": game_state["board"],
+                            "turn": game_state["turn"],
+                            "message": f"{player_id} moved to {position}."
+                        }
                     else:
-                        return {"type": "ERROR", "message": "Invalid move!"}
+                        return {"type": "ERROR", "message": "Invalid move!", "turn": game_state["turn"]}
                 except ValueError:
-                    return {"type": "ERROR", "message": "Invalid position format!"}
+                    return {"type": "ERROR", "message": "Invalid position format!", "turn": game_state["turn"]}
         else:
-            return {"type": "ERROR", "message": "It's not your turn!"}
+            return {"type": "ERROR", "message": "It's not your turn!", "turn": game_state["turn"]}
+
+    elif message_type == MESSAGE_TYPES["CHAT"]:
+        return {"type": "CHAT", "message": f"{player_id} says: {data.get('message', '')}"}
 
     elif message_type == MESSAGE_TYPES["QUIT"]:
-        return {"type": "QUIT", "message": f"Client {unique_id} has left the game."}
+        return {"type": "QUIT", "message": f"Client {unique_id} has left the game.", "turn": game_state["turn"]}
 
-    return {"type": "ERROR", "message": "Unknown message type."}
+    return {"type": "ERROR", "message": "Unknown message type.", "turn": game_state["turn"]}
 
 def check_winner(player_id):
     for i in range(3):

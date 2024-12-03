@@ -4,7 +4,10 @@ import json
 import sys
 import uuid
 
+is_my_turn = False  # Track if it's this player's turn
+
 def receive_messages(sock):
+    global is_my_turn
     while True:
         try:
             message = sock.recv(1024).decode('utf-8')
@@ -18,6 +21,7 @@ def receive_messages(sock):
             break
 
 def handle_server_message(data):
+    global is_my_turn
     message_type = data.get("type")
 
     if message_type == "JOIN":
@@ -25,12 +29,15 @@ def handle_server_message(data):
     elif message_type == "MOVE":
         print(f"\n{data.get('message', 'A move was made.')}")
         print_board(data.get("board"))
+        is_my_turn = data.get("turn") == client_id  # Update turn based on server message
     elif message_type == "WIN":
         print(f"\n{data.get('message', 'Game over.')}")
         print_board(data.get("board"))
+        is_my_turn = False  # Game is over
     elif message_type == "DRAW":
-        print(f"\n{data.get('message', 'It is a draw.')}")
+        print(f"\n{data.get('message', 'It\'s a draw.')}")
         print_board(data.get("board"))
+        is_my_turn = False  # Game is over
     elif message_type == "ERROR":
         print(f"\n{data.get('message', 'An error occurred.')}")
     elif message_type == "QUIT":
@@ -38,10 +45,9 @@ def handle_server_message(data):
     elif message_type == "STATE":
         print("\nGame state updated.")
         print_board(data.get("board"))
+        is_my_turn = data.get("turn") == client_id  # Update turn based on server message
     else:
-        # Suppress unknown message errors for known message types
-        print(f"Unhandled message type: {message_type}")
-        return
+        print("\nUnknown message type received:", data)
 
 def send_move(sock, position):
     try:
@@ -49,6 +55,13 @@ def send_move(sock, position):
         sock.send(message.encode('utf-8'))
     except Exception as e:
         print(f"Error sending move: {e}")
+
+def send_chat(sock, message):
+    try:
+        chat_message = json.dumps({"type": "chat", "message": message})
+        sock.send(chat_message.encode('utf-8'))
+    except Exception as e:
+        print(f"Error sending chat message: {e}")
 
 def print_board(board):
     if board:
@@ -61,6 +74,7 @@ def print_board(board):
         print("No board to display.")
 
 def main():
+    global is_my_turn, client_id
     import argparse
     parser = argparse.ArgumentParser(description='Tic-Tac-Toe client')
     parser.add_argument('-H', '--host', type=str, required=True, help='Server host')
@@ -80,17 +94,24 @@ def main():
         threading.Thread(target=receive_messages, args=(sock,), daemon=True).start()
 
         while True:
-            user_input = input("\nEnter your move as row,col (or type 'quit' to exit): ")
-            if user_input.lower() == 'quit':
-                print("Exiting the game.")
-                sock.close()
-                break
-
-            try:
-                row, col = map(int, user_input.split(','))
-                send_move(sock, [row, col])
-            except ValueError:
-                print("\nInvalid input. Please enter row and column as numbers separated by a comma.")
+            if is_my_turn:
+                user_input = input("\nEnter your move as row,col (or type 'chat:<message>' to chat): ")
+                if user_input.lower() == 'quit':
+                    print("Exiting the game.")
+                    sock.close()
+                    break
+                elif user_input.lower().startswith("chat:"):
+                    chat_message = user_input.split(":", 1)[1].strip()
+                    send_chat(sock, chat_message)
+                else:
+                    try:
+                        row, col = map(int, user_input.split(','))
+                        send_move(sock, [row, col])
+                    except ValueError:
+                        print("\nInvalid input. Please enter row and column as numbers separated by a comma.")
+            else:
+                print("\nWaiting for the other player's move...")
+                threading.Event().wait(2)  # Pause briefly to avoid spamming
 
     except Exception as e:
         print(f"Error connecting to server: {e}")
