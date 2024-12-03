@@ -47,7 +47,7 @@ def handle_server_message(data):
         print_board(game_state)
         is_my_turn = False  # Game is over
     elif message_type == "DRAW":
-        print(f"\n{data.get('message', 'It\'s a draw.')}")
+        print(f"\n{data.get('message', 'It is a draw.')}")
         game_state = data.get("board", [])
         print_board(game_state)
         is_my_turn = False  # Game is over
@@ -108,7 +108,7 @@ def main():
         threading.Thread(target=receive_messages, args=(sock,), daemon=True).start()
 
         while True:
-            if is_my_turn:
+            if is_my_turn is True:
                 print_board(game_state)  # Display the board before asking for input
                 user_input = input("\nEnter your move as row,col (or type 'chat:<message>' to chat): ")
                 if user_input.lower() == 'quit':
@@ -127,7 +127,7 @@ def main():
                         print("\nInvalid input. Please enter row and column as numbers separated by a comma.")
             else:
                 print("\nWaiting for the other player's move...")  # Display once
-                threading.Event().wait(5)  # Small delay to avoid spamming
+                threading.Event().wait()
 
     except Exception as e:
         print(f"Error connecting to server: {e}")
