@@ -4,6 +4,7 @@ import logging
 import json
 import sys
 import traceback
+import uuid
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -11,7 +12,7 @@ clients = {}
 player_turns = []
 current_turn_index = 0
 game_state = {
-    "board": [[' ' for _ in range(3)] for _ in range(3)],
+    "board": [['#' for _ in range(3)] for _ in range(3)],
     "turn": None,
     "winner": None
 }
@@ -28,13 +29,15 @@ MESSAGE_TYPES = {
 
 def handle_client(client_socket, client_address):
     logging.info(f"Client connected: {client_address}")
-    clients[client_address] = client_socket
+
+    unique_id = str(uuid.uuid4())
+    clients[unique_id] = client_socket
 
     player_id = 'X' if len(player_turns) % 2 == 0 else 'O'
-    player_turns.append(client_address)
+    player_turns.append(unique_id)
 
     try:
-        broadcast({"type": "JOIN", "player_id": player_id, "address": str(client_address)})
+        broadcast({"type": "JOIN", "player_id": player_id, "unique_id": unique_id})
 
         while True:
             message = client_socket.recv(1024).decode('utf-8')
@@ -43,37 +46,38 @@ def handle_client(client_socket, client_address):
 
             try:
                 data = json.loads(message)
-                logging.info(f"Received message from {client_address}: {data}")
+                logging.info(f"Received message from {unique_id}: {data}")
 
-                response = handle_message(data, client_address, player_id)
+                response = handle_message(data, unique_id, player_id)
                 if response:
                     broadcast(response)
             except json.JSONDecodeError:
-                logging.error(f"Invalid JSON from {client_address}: {message}")
+                logging.error(f"Invalid JSON from {unique_id}: {message}")
     except Exception:
-        logging.error(f"Error with client {client_address}: {traceback.format_exc()}")
+        logging.error(f"Error with client {unique_id}: {traceback.format_exc()}")
     finally:
         client_socket.close()
-        if client_address in clients:
-            del clients[client_address]
-        if client_address in player_turns:
-            player_turns.remove(client_address)
-        broadcast({"type": "QUIT", "message": f"{client_address} has left the game."})
+        if unique_id in clients:
+            del clients[unique_id]
+        if unique_id in player_turns:
+            player_turns.remove(unique_id)
+        broadcast({"type": "QUIT", "message": f"Client {unique_id} has left the game."})
 
-def handle_message(data, client_address, player_id):
+def handle_message(data, unique_id, player_id):
     global current_turn_index
     message_type = data.get("type")
 
     if message_type == MESSAGE_TYPES["JOIN"]:
-        return {"type": "JOIN", "message": f"{client_address} has joined the game."}
+        return {"type": "JOIN", "message": f"Client {unique_id} has joined the game."}
 
     elif message_type == MESSAGE_TYPES["MOVE"]:
-        if client_address == player_turns[current_turn_index]:
+        if unique_id == player_turns[current_turn_index]:
             position = data.get('position')
             if position and isinstance(position, list) and len(position) == 2:
                 try:
                     row, col = map(int, position)
-                    if 0 <= row < 3 and 0 <= col < 3 and game_state["board"][row][col] == ' ':
+                    row, col = row - 1, col - 1  # Convert 1-based to 0-based indexing
+                    if 0 <= row < 3 and 0 <= col < 3 and game_state["board"][row][col] == '#':
                         game_state["board"][row][col] = player_id
                         current_turn_index = (current_turn_index + 1) % len(player_turns)
                         game_state["turn"] = player_turns[current_turn_index]
@@ -94,7 +98,7 @@ def handle_message(data, client_address, player_id):
             return {"type": "ERROR", "message": "It's not your turn!"}
 
     elif message_type == MESSAGE_TYPES["QUIT"]:
-        return {"type": "QUIT", "message": f"{client_address} has left the game."}
+        return {"type": "QUIT", "message": f"Client {unique_id} has left the game."}
 
     return {"type": "ERROR", "message": "Unknown message type."}
 
@@ -110,14 +114,14 @@ def check_winner(player_id):
     return False
 
 def check_draw():
-    return all(game_state["board"][i][j] != ' ' for i in range(3) for j in range(3))
+    return all(game_state["board"][i][j] != '#' for i in range(3) for j in range(3))
 
 def broadcast(message):
-    for client_address, client_socket in clients.items():
+    for unique_id, client_socket in clients.items():
         try:
             client_socket.send(json.dumps(message).encode('utf-8'))
         except Exception as e:
-            logging.error(f"Failed to send message to {client_address}: {e}")
+            logging.error(f"Failed to send message to {unique_id}: {e}")
 
 def start_server(host='0.0.0.0', port=12345):
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
