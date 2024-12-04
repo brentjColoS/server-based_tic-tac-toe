@@ -4,18 +4,16 @@ import logging
 import json
 import sys
 import traceback
-import uuid
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-clients = {}
-player_turns = []
-current_turn_index = 0
+clients = {}  # Maps client_id to socket
+player_roles = {}  # Maps client_id to player number (1 or 2)
 game_state = {
     "board": [['#' for _ in range(3)] for _ in range(3)],
-    "turn": None,
     "winner": None
 }
+whoseTurn = 1  # Global variable to track whose turn it is (1 or 2)
 
 MESSAGE_TYPES = {
     "JOIN": "join",
@@ -28,47 +26,38 @@ MESSAGE_TYPES = {
 }
 
 def handle_client(client_socket, client_address):
+    global whoseTurn
+
     logging.info(f"Client connected: {client_address}")
 
-    unique_id = str(uuid.uuid4())
-    clients[unique_id] = client_socket
-
-    if len(player_turns) == 0:
-        player_id = 'X'  # First client gets X
-    elif len(player_turns) == 1:
-        player_id = 'O'  # Second client gets O
-    else:
-        player_id = None  # No more players allowed
-
-    if player_id:
-        player_turns.append(unique_id)
-
-        if len(player_turns) == 1:
-            game_state["turn"] = unique_id  # First player starts the game
-
-        # Inform the client of their assigned ID and role
-        client_socket.send(json.dumps({
-            "type": "ASSIGN_ID",
-            "client_id": unique_id,
-            "player_id": player_id,
-            "board": game_state["board"],
-            "turn": game_state["turn"]
-        }).encode('utf-8'))
-
-        broadcast({
-            "type": "JOIN",
-            "message": f"Client {unique_id} joined as {player_id}.",
-            "player_id": player_id,
-            "board": game_state["board"],
-            "turn": game_state["turn"]
-        })
-    else:
+    if len(player_roles) >= 2:
         client_socket.send(json.dumps({
             "type": "ERROR",
             "message": "Game is full. Only two players allowed."
         }).encode('utf-8'))
         client_socket.close()
         return
+
+    player_number = 1 if len(player_roles) == 0 else 2
+    client_id = f"player_{player_number}"
+    clients[client_id] = client_socket
+    player_roles[client_id] = player_number
+
+    # Notify the client of their assigned ID and player number
+    client_socket.send(json.dumps({
+        "type": "ASSIGN_ID",
+        "client_id": client_id,
+        "player_number": player_number,
+        "board": game_state["board"],
+        "whoseTurn": whoseTurn
+    }).encode('utf-8'))
+
+    broadcast({
+        "type": "JOIN",
+        "message": f"Player {player_number} joined the game.",
+        "board": game_state["board"],
+        "whoseTurn": whoseTurn
+    })
 
     try:
         while True:
@@ -78,100 +67,118 @@ def handle_client(client_socket, client_address):
 
             try:
                 data = json.loads(message)
-                logging.info(f"Received message from {unique_id}: {data}")
+                logging.info(f"Received message from {client_id}: {data}")
 
-                response = handle_message(data, unique_id, player_id)
+                response = handle_message(data, client_id, player_number)
                 if response:
                     broadcast(response)
             except json.JSONDecodeError:
-                logging.error(f"Invalid JSON from {unique_id}: {message}")
+                logging.error(f"Invalid JSON from {client_id}: {message}")
     except Exception:
-        logging.error(f"Error with client {unique_id}: {traceback.format_exc()}")
+        logging.error(f"Error with client {client_id}: {traceback.format_exc()}")
     finally:
         client_socket.close()
-        handle_disconnection(unique_id)
+        handle_disconnection(client_id)
 
-def handle_disconnection(unique_id):
-    global current_turn_index
+def handle_disconnection(client_id):
+    global whoseTurn
 
-    if unique_id in clients:
-        del clients[unique_id]
-    if unique_id in player_turns:
-        player_turns.remove(unique_id)
-
-        if len(player_turns) > 0:
-            current_turn_index %= len(player_turns)
-            game_state["turn"] = player_turns[current_turn_index]
-        else:
-            game_state["turn"] = None
+    if client_id in clients:
+        del clients[client_id]
+    if client_id in player_roles:
+        del player_roles[client_id]
 
     broadcast({
         "type": "QUIT",
-        "message": f"Client {unique_id} has left the game.",
+        "message": f"{client_id} has left the game.",
         "board": game_state["board"],
-        "turn": game_state["turn"]
+        "whoseTurn": whoseTurn
     })
 
-def handle_message(data, unique_id, player_id):
-    global current_turn_index
+def handle_message(data, client_id, player_number):
+    global whoseTurn
     message_type = data.get("type")
 
     if message_type == MESSAGE_TYPES["MOVE"]:
-        if unique_id == game_state["turn"]:
-            position = data.get('position')
-            if position and isinstance(position, list) and len(position) == 2:
-                try:
-                    row, col = map(int, position)
-                    row, col = row - 1, col - 1  # Convert 1-based to 0-based indexing
-                    if 0 <= row < 3 and 0 <= col < 3 and game_state["board"][row][col] == '#':
-                        game_state["board"][row][col] = player_id
+        if whoseTurn != player_number:
+            return {
+                "type": "ERROR",
+                "message": "It's not your turn!",
+                "board": game_state["board"],
+                "whoseTurn": whoseTurn
+            }
 
-                        if check_winner(player_id):
-                            game_state["winner"] = player_id
-                            return {
-                                "type": "WIN",
-                                "board": game_state["board"],
-                                "message": f"{player_id} wins!",
-                                "turn": None
-                            }
-                        elif check_draw():
-                            game_state["winner"] = "Draw"
-                            return {
-                                "type": "DRAW",
-                                "board": game_state["board"],
-                                "message": "It's a draw!",
-                                "turn": None
-                            }
+        position = data.get('position')
+        if position and isinstance(position, list) and len(position) == 2:
+            try:
+                row, col = map(int, position)
+                row, col = row - 1, col - 1  # Convert 1-based to 0-based indexing
+                if 0 <= row < 3 and 0 <= col < 3 and game_state["board"][row][col] == '#':
+                    # Update the board
+                    game_state["board"][row][col] = 'X' if player_number == 1 else 'O'
 
-                        # Update turn
-                        current_turn_index = (current_turn_index + 1) % len(player_turns)
-                        game_state["turn"] = player_turns[current_turn_index]
+                    # Check for a winner or a draw
+                    if check_winner(player_number):
+                        game_state["winner"] = player_number
                         return {
-                            "type": "MOVE",
+                            "type": "WIN",
+                            "message": f"Player {player_number} wins!",
                             "board": game_state["board"],
-                            "turn": game_state["turn"],
-                            "message": f"{player_id} moved to {position}."
+                            "whoseTurn": None
                         }
-                    else:
-                        return {"type": "ERROR", "message": "Invalid move!", "board": game_state["board"], "turn": game_state["turn"]}
-                except ValueError:
-                    return {"type": "ERROR", "message": "Invalid position format!", "board": game_state["board"], "turn": game_state["turn"]}
-        else:
-            return {"type": "ERROR", "message": "It's not your turn!", "board": game_state["board"], "turn": game_state["turn"]}
+                    elif check_draw():
+                        game_state["winner"] = "Draw"
+                        return {
+                            "type": "DRAW",
+                            "message": "It's a draw!",
+                            "board": game_state["board"],
+                            "whoseTurn": None
+                        }
 
+                    # Switch turn
+                    whoseTurn = 2 if whoseTurn == 1 else 1
+                    return {
+                        "type": "MOVE",
+                        "message": f"Player {player_number} moved to {position}.",
+                        "board": game_state["board"],
+                        "whoseTurn": whoseTurn
+                    }
+                else:
+                    return {
+                        "type": "ERROR",
+                        "message": "Invalid move!",
+                        "board": game_state["board"],
+                        "whoseTurn": whoseTurn
+                    }
+            except ValueError:
+                return {
+                    "type": "ERROR",
+                    "message": "Invalid position format!",
+                    "board": game_state["board"],
+                    "whoseTurn": whoseTurn
+                }
     elif message_type == MESSAGE_TYPES["CHAT"]:
-        return {"type": "CHAT", "message": f"{player_id} says: {data.get('message', '')}"}
+        return {
+            "type": "CHAT",
+            "message": f"Player {player_number} says: {data.get('message', '')}"
+        }
 
-    return {"type": "ERROR", "message": "Unknown message type.", "board": game_state["board"], "turn": game_state["turn"]}
+    return {
+        "type": "ERROR",
+        "message": "Unknown message type.",
+        "board": game_state["board"],
+        "whoseTurn": whoseTurn
+    }
 
-def check_winner(player_id):
+def check_winner(player_number):
+    symbol = 'X' if player_number == 1 else 'O'
     for i in range(3):
-        if all(game_state["board"][i][j] == player_id for j in range(3)) or \
-           all(game_state["board"][j][i] == player_id for j in range(3)):
+        if all(game_state["board"][i][j] == symbol for j in range(3)) or \
+           all(game_state["board"][j][i] == symbol for j in range(3)):
             return True
-    if game_state["board"][0][0] == player_id and game_state["board"][1][1] == player_id and game_state["board"][2][2] == player_id:
+    if game_state["board"][0][0] == symbol and game_state["board"][1][1] == symbol and game_state["board"][2][2] == symbol:
         return True
-    if game_state["board"][0][2] == player_id and game_state["board"][1][1] == player_id and game_state["board"][2][0] == player_id:
+    if game_state["board"][0][2] == symbol and game_state["board"][1][1] == symbol and game_state["board"][2][0] == symbol:
         return True
     return False
 
@@ -179,11 +186,11 @@ def check_draw():
     return all(game_state["board"][i][j] != '#' for i in range(3) for j in range(3))
 
 def broadcast(message):
-    for unique_id, client_socket in clients.items():
+    for client_id, client_socket in clients.items():
         try:
             client_socket.send(json.dumps(message).encode('utf-8'))
         except Exception as e:
-            logging.error(f"Failed to send message to {unique_id}: {e}")
+            logging.error(f"Failed to send message to {client_id}: {e}")
 
 def start_server(host='0.0.0.0', port=12345):
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
