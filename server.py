@@ -60,6 +60,15 @@ def handle_client(client_socket, client_address):
         "whoseTurn": whoseTurn
     })
 
+    # Allow Player 1 to make the first move immediately
+    if player_number == 1:
+        client_socket.send(json.dumps({
+            "type": "MOVE",
+            "message": "You are Player 1 (X). Make your move.",
+            "board": game_state["board"],
+            "whoseTurn": whoseTurn
+        }).encode('utf-8'))
+
     try:
         while True:
             message = client_socket.recv(1024).decode('utf-8')
