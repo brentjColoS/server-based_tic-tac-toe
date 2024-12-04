@@ -31,7 +31,6 @@ def handle_server_message(data, sock):
         player_id = data.get("player_symbol")
         print(f"\nAssigned ID: {client_id}, playing as {player_id}.")
         game_state = data.get("board", [])
-        print_board(game_state)
         if data.get("whoseTurn") == player_id:
             is_my_turn = True
             prompt_for_move(sock)  # Prompt for move immediately if it's this player's turn
@@ -73,7 +72,7 @@ def prompt_for_move(sock):
     global is_my_turn
     if is_my_turn:
         print_board(game_state)  # Display the board before asking for input
-        user_input = input("\nEnter your move as row,col (or type 'chat:<message>' to chat): ")
+        user_input = input("\nEnter your move as row,col (type 'chat:<message>' to chat | type 'quit' to exit): ")
         if user_input.lower() == 'quit':
             print("Exiting the game.")
             sock.close()
@@ -90,6 +89,7 @@ def prompt_for_move(sock):
             except ValueError:
                 print("\nInvalid input. Please enter row and column as numbers separated by a comma.")
                 prompt_for_move(sock)  # Re-prompt on invalid input
+    else: print("FAILURE OF IS MY TURN")
 
 def send_move(sock, position):
     try:
