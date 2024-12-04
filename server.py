@@ -22,6 +22,7 @@ MESSAGE_TYPES = {
     "STATE": "state",
     "WIN": "win",
     "DRAW": "draw",
+    "EXIT": "exit"
 }
 
 def handle_client(client_socket, client_address):
@@ -54,8 +55,7 @@ def handle_client(client_socket, client_address):
 
     broadcast({
         "type": "JOIN",
-        # "message": f"Player {player_number} joined as {player_symbol}.",
-        "message": "",
+        "message": f"Player {player_number} joined as {player_symbol}.",
         "board": game_state["board"],
         "whoseTurn": whoseTurn
     })
@@ -121,20 +121,24 @@ def handle_message(data, client_id, player_number, player_symbol):
                     # Check for a winner or a draw
                     if check_winner(player_symbol):
                         game_state["winner"] = player_symbol
-                        return {
+                        broadcast({
                             "type": "WIN",
                             "message": f"Player {player_number} ({player_symbol}) wins!",
                             "board": game_state["board"],
                             "whoseTurn": None
-                        }
+                        })
+                        close_game()
+                        return
                     elif check_draw():
                         game_state["winner"] = "Draw"
-                        return {
+                        broadcast({
                             "type": "DRAW",
                             "message": "It's a draw!",
                             "board": game_state["board"],
                             "whoseTurn": None
-                        }
+                        })
+                        close_game()
+                        return
 
                     # Switch turn
                     whoseTurn = 2 if whoseTurn == 1 else 1
@@ -184,6 +188,16 @@ def check_winner(symbol):
 
 def check_draw():
     return all(game_state["board"][i][j] != '#' for i in range(3) for j in range(3))
+
+def close_game():
+    """Send exit message to all clients and close the server."""
+    broadcast({"type": "EXIT", "message": "Game over. Exiting..."})
+    for client_id, client_socket in clients.items():
+        client_socket.close()
+    clients.clear()
+    player_roles.clear()
+    logging.info("Game closed for all clients.")
+    exit(0)
 
 def broadcast(message):
     for client_id, client_socket in clients.items():
