@@ -2,7 +2,6 @@ import socket
 import threading
 import logging
 import json
-import sys
 import traceback
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -44,7 +43,7 @@ def handle_client(client_socket, client_address):
     player_roles[client_id] = player_number
     player_symbol = 'X' if player_number == 1 else 'O'
 
-    # Notify the client of their assigned ID and player role
+    # Notify the client of their assigned ID and role
     client_socket.send(json.dumps({
         "type": "ASSIGN_ID",
         "client_id": client_id,
@@ -59,15 +58,6 @@ def handle_client(client_socket, client_address):
         "board": game_state["board"],
         "whoseTurn": whoseTurn
     })
-
-    # Allow Player 1 to make the first move immediately
-    if player_number == 1:
-        client_socket.send(json.dumps({
-            "type": "MOVE",
-            "message": "You are Player 1 (X). Make your move.",
-            "board": game_state["board"],
-            "whoseTurn": whoseTurn
-        }).encode('utf-8'))
 
     try:
         while True:
