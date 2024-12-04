@@ -10,17 +10,30 @@ game_state = None  # Track the current game state
 
 def receive_messages(sock):
     global is_my_turn, game_state, player_id, client_id
+    buffer = ""  # Buffer to store partial data
     while True:
         try:
-            message = sock.recv(1024).decode('utf-8')
-            if not message:
+            # Receive data from the socket
+            data = sock.recv(1024).decode('utf-8')
+            if not data:
                 print("Disconnected from the server.")
                 break
-            data = json.loads(message)
-            handle_server_message(data, sock)
+            buffer += data  # Append received data to buffer
+
+            # Process complete JSON objects in the buffer
+            while True:
+                try:
+                    # Try to parse a JSON object
+                    message, idx = json.JSONDecoder().raw_decode(buffer)
+                    buffer = buffer[idx:].lstrip()  # Remove the processed message from the buffer
+                    handle_server_message(message, sock)
+                except json.JSONDecodeError:
+                    # Incomplete JSON object, wait for more data
+                    break
         except Exception as e:
             print(f"Error receiving message: {e}")
             break
+
 
 def handle_server_message(data, sock):
     global is_my_turn, game_state, player_id, client_id
@@ -42,8 +55,11 @@ def handle_server_message(data, sock):
             print(f"\n{data.get('message')}")
     elif message_type == "MOVE":
         print(f"\n{data.get('message', 'A move was made.')}")
+        # Update the game board for all clients
         game_state = data.get("board", [])
-        print_board(game_state)
+        # Only the client who made the move sees the board print immediately
+        if turn_map.get(data.get("whoseTurn")) != player_id:
+            print_board(game_state)
         is_my_turn = turn_map.get(data.get("whoseTurn")) == player_id
         if is_my_turn:
             prompt_for_move(sock)
@@ -73,6 +89,8 @@ def handle_server_message(data, sock):
     else:
         print("\nUnknown message type received:", data)
 
+
+
 def prompt_for_move(sock):
     global is_my_turn
     if is_my_turn:
@@ -85,6 +103,8 @@ def prompt_for_move(sock):
         elif user_input.lower().startswith("chat:"):
             chat_message = user_input.split(":", 1)[1].strip()
             send_chat(sock, chat_message)
+            print("\nChat sent.")  # Optional message to confirm the chat was sent
+            prompt_for_move(sock)  # Re-prompt for input after chat
         else:
             try:
                 row, col = map(int, user_input.split(','))
