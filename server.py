@@ -42,19 +42,20 @@ def handle_client(client_socket, client_address):
     client_id = f"player_{player_number}"
     clients[client_id] = client_socket
     player_roles[client_id] = player_number
+    player_symbol = 'X' if player_number == 1 else 'O'
 
-    # Notify the client of their assigned ID and player number
+    # Notify the client of their assigned ID and player role
     client_socket.send(json.dumps({
         "type": "ASSIGN_ID",
         "client_id": client_id,
-        "player_number": player_number,
+        "player_symbol": player_symbol,
         "board": game_state["board"],
         "whoseTurn": whoseTurn
     }).encode('utf-8'))
 
     broadcast({
         "type": "JOIN",
-        "message": f"Player {player_number} joined the game.",
+        "message": f"Player {player_number} joined as {player_symbol}.",
         "board": game_state["board"],
         "whoseTurn": whoseTurn
     })
@@ -69,7 +70,7 @@ def handle_client(client_socket, client_address):
                 data = json.loads(message)
                 logging.info(f"Received message from {client_id}: {data}")
 
-                response = handle_message(data, client_id, player_number)
+                response = handle_message(data, client_id, player_number, player_symbol)
                 if response:
                     broadcast(response)
             except json.JSONDecodeError:
@@ -95,7 +96,7 @@ def handle_disconnection(client_id):
         "whoseTurn": whoseTurn
     })
 
-def handle_message(data, client_id, player_number):
+def handle_message(data, client_id, player_number, player_symbol):
     global whoseTurn
     message_type = data.get("type")
 
@@ -115,14 +116,14 @@ def handle_message(data, client_id, player_number):
                 row, col = row - 1, col - 1  # Convert 1-based to 0-based indexing
                 if 0 <= row < 3 and 0 <= col < 3 and game_state["board"][row][col] == '#':
                     # Update the board
-                    game_state["board"][row][col] = 'X' if player_number == 1 else 'O'
+                    game_state["board"][row][col] = player_symbol
 
                     # Check for a winner or a draw
-                    if check_winner(player_number):
-                        game_state["winner"] = player_number
+                    if check_winner(player_symbol):
+                        game_state["winner"] = player_symbol
                         return {
                             "type": "WIN",
-                            "message": f"Player {player_number} wins!",
+                            "message": f"Player {player_number} ({player_symbol}) wins!",
                             "board": game_state["board"],
                             "whoseTurn": None
                         }
@@ -139,7 +140,7 @@ def handle_message(data, client_id, player_number):
                     whoseTurn = 2 if whoseTurn == 1 else 1
                     return {
                         "type": "MOVE",
-                        "message": f"Player {player_number} moved to {position}.",
+                        "message": f"Player {player_number} ({player_symbol}) moved to {position}.",
                         "board": game_state["board"],
                         "whoseTurn": whoseTurn
                     }
@@ -160,7 +161,7 @@ def handle_message(data, client_id, player_number):
     elif message_type == MESSAGE_TYPES["CHAT"]:
         return {
             "type": "CHAT",
-            "message": f"Player {player_number} says: {data.get('message', '')}"
+            "message": f"Player {player_number} ({player_symbol}) says: {data.get('message', '')}"
         }
 
     return {
@@ -170,8 +171,7 @@ def handle_message(data, client_id, player_number):
         "whoseTurn": whoseTurn
     }
 
-def check_winner(player_number):
-    symbol = 'X' if player_number == 1 else 'O'
+def check_winner(symbol):
     for i in range(3):
         if all(game_state["board"][i][j] == symbol for j in range(3)) or \
            all(game_state["board"][j][i] == symbol for j in range(3)):
