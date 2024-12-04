@@ -17,12 +17,12 @@ def receive_messages(sock):
                 print("Disconnected from the server.")
                 break
             data = json.loads(message)
-            handle_server_message(data)
+            handle_server_message(data, sock)
         except Exception as e:
             print(f"Error receiving message: {e}")
             break
 
-def handle_server_message(data):
+def handle_server_message(data, sock):
     global is_my_turn, game_state, player_id, client_id
     message_type = data.get("type")
 
@@ -34,6 +34,7 @@ def handle_server_message(data):
         print_board(game_state)
         if data.get("whoseTurn") == player_id:
             is_my_turn = True
+            prompt_for_move(sock)  # Prompt for move immediately if it's this player's turn
     elif message_type == "JOIN":
         print(f"\n{data.get('message')}")
         print_board(data.get("board"))
@@ -42,6 +43,8 @@ def handle_server_message(data):
         game_state = data.get("board", [])
         print_board(game_state)
         is_my_turn = data.get("whoseTurn") == player_id
+        if is_my_turn:
+            prompt_for_move(sock)
     elif message_type == "WIN":
         print(f"\n{data.get('message', 'Game over.')}")
         game_state = data.get("board", [])
@@ -54,6 +57,8 @@ def handle_server_message(data):
         is_my_turn = False  # Game is over
     elif message_type == "ERROR":
         print(f"\n{data.get('message', 'An error occurred.')}")
+        if is_my_turn:
+            prompt_for_move(sock)  # Re-prompt on error
     elif message_type == "CHAT":
         print(f"\n{data.get('message', '')}")
     elif message_type == "STATE":
@@ -63,6 +68,28 @@ def handle_server_message(data):
         is_my_turn = data.get("whoseTurn") == player_id
     else:
         print("\nUnknown message type received:", data)
+
+def prompt_for_move(sock):
+    global is_my_turn
+    if is_my_turn:
+        print_board(game_state)  # Display the board before asking for input
+        user_input = input("\nEnter your move as row,col (or type 'chat:<message>' to chat): ")
+        if user_input.lower() == 'quit':
+            print("Exiting the game.")
+            sock.close()
+            sys.exit()
+        elif user_input.lower().startswith("chat:"):
+            chat_message = user_input.split(":", 1)[1].strip()
+            send_chat(sock, chat_message)
+        else:
+            try:
+                row, col = map(int, user_input.split(','))
+                send_move(sock, [row, col])
+                is_my_turn = False  # Set to False after making the move
+                print("\nWaiting for the other player's move...")
+            except ValueError:
+                print("\nInvalid input. Please enter row and column as numbers separated by a comma.")
+                prompt_for_move(sock)  # Re-prompt on invalid input
 
 def send_move(sock, position):
     try:
@@ -104,26 +131,7 @@ def main():
         threading.Thread(target=receive_messages, args=(sock,), daemon=True).start()
 
         while True:
-            if is_my_turn:
-                print_board(game_state)  # Display the board before asking for input
-                user_input = input("\nEnter your move as row,col (or type 'chat:<message>' to chat): ")
-                if user_input.lower() == 'quit':
-                    print("Exiting the game.")
-                    sock.close()
-                    break
-                elif user_input.lower().startswith("chat:"):
-                    chat_message = user_input.split(":", 1)[1].strip()
-                    send_chat(sock, chat_message)
-                else:
-                    try:
-                        row, col = map(int, user_input.split(','))
-                        send_move(sock, [row, col])
-                        is_my_turn = False  # Set to False after making the move
-                    except ValueError:
-                        print("\nInvalid input. Please enter row and column as numbers separated by a comma.")
-            else:
-                print("\nWaiting for the other player's move...")
-                threading.Event().wait()  # Avoid busy waiting
+            threading.Event().wait(1)  # Allow background thread to process incoming messages
 
     except Exception as e:
         print(f"Error connecting to server: {e}")
