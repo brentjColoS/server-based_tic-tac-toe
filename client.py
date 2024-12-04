@@ -38,8 +38,8 @@ def handle_server_message(data, sock):
             is_my_turn = True
             prompt_for_move(sock)  # Prompt for move immediately if it's this player's turn
     elif message_type == "JOIN":
-        print(f"\n{data.get('message')}")
-        print_board(data.get("board"))
+        if data.get("client_id") != client_id:  # Ignore self-join messages
+            print(f"\n{data.get('message')}")
     elif message_type == "MOVE":
         print(f"\n{data.get('message', 'A move was made.')}")
         game_state = data.get("board", [])
@@ -47,6 +47,8 @@ def handle_server_message(data, sock):
         is_my_turn = turn_map.get(data.get("whoseTurn")) == player_id
         if is_my_turn:
             prompt_for_move(sock)
+        else:
+            print("\nWaiting for the other player's move...")
     elif message_type == "WIN":
         print(f"\n{data.get('message', 'Game over.')}")
         game_state = data.get("board", [])
@@ -88,7 +90,6 @@ def prompt_for_move(sock):
                 row, col = map(int, user_input.split(','))
                 send_move(sock, [row, col])
                 is_my_turn = False  # Set to False after making the move
-                print("\nWaiting for the other player's move...")
             except ValueError:
                 print("\nInvalid input. Please enter row and column as numbers separated by a comma.")
                 prompt_for_move(sock)  # Re-prompt on invalid input

@@ -54,7 +54,8 @@ def handle_client(client_socket, client_address):
 
     broadcast({
         "type": "JOIN",
-        "message": f"Player {player_number} joined as {player_symbol}.",
+        # "message": f"Player {player_number} joined as {player_symbol}.",
+        "message": "",
         "board": game_state["board"],
         "whoseTurn": whoseTurn
     })
