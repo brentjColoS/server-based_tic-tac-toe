@@ -28,20 +28,20 @@ def handle_server_message(data):
 
     if message_type == "ASSIGN_ID":
         client_id = data.get("client_id")
-        player_id = data.get("player_id")
+        player_id = data.get("player_symbol")
         print(f"\nAssigned ID: {client_id}, playing as {player_id}.")
         game_state = data.get("board", [])
-        # print_board(game_state)
-        if data.get("turn") == client_id:
+        print_board(game_state)
+        if data.get("whoseTurn") == player_id:
             is_my_turn = True
     elif message_type == "JOIN":
         print(f"\n{data.get('message')}")
-        # print_board(data.get("board"))
+        print_board(data.get("board"))
     elif message_type == "MOVE":
         print(f"\n{data.get('message', 'A move was made.')}")
         game_state = data.get("board", [])
         print_board(game_state)
-        is_my_turn = data.get("turn") == client_id
+        is_my_turn = data.get("whoseTurn") == player_id
     elif message_type == "WIN":
         print(f"\n{data.get('message', 'Game over.')}")
         game_state = data.get("board", [])
@@ -60,7 +60,7 @@ def handle_server_message(data):
         print("\nGame state updated.")
         game_state = data.get("board", [])
         print_board(game_state)
-        is_my_turn = data.get("turn") == client_id
+        is_my_turn = data.get("whoseTurn") == player_id
     else:
         print("\nUnknown message type received:", data)
 
@@ -104,7 +104,7 @@ def main():
         threading.Thread(target=receive_messages, args=(sock,), daemon=True).start()
 
         while True:
-            if is_my_turn is True:
+            if is_my_turn:
                 print_board(game_state)  # Display the board before asking for input
                 user_input = input("\nEnter your move as row,col (or type 'chat:<message>' to chat): ")
                 if user_input.lower() == 'quit':
@@ -118,12 +118,12 @@ def main():
                     try:
                         row, col = map(int, user_input.split(','))
                         send_move(sock, [row, col])
-                        print("\n" + "Waiting for other Player's input...")
                         is_my_turn = False  # Set to False after making the move
                     except ValueError:
                         print("\nInvalid input. Please enter row and column as numbers separated by a comma.")
             else:
-                threading.Event().wait(1)  # Avoid busy waiting
+                print("\nWaiting for the other player's move...")
+                threading.Event().wait()  # Avoid busy waiting
 
     except Exception as e:
         print(f"Error connecting to server: {e}")
