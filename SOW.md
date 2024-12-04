@@ -29,7 +29,7 @@ Presentation worthy programs and Wiki able to be shown freely
 
 ## Timeline:
 
-*coming soon*
+Sprint by sprint continue to update as given by the requirements provided. Each sprint iteratively updates the programs to be better suited for wide use, including game state synchronization as well as custom messages and board updating visually.
 
 ### Key Milestones:
 
