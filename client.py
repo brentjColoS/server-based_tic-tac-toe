@@ -26,12 +26,15 @@ def handle_server_message(data, sock):
     global is_my_turn, game_state, player_id, client_id
     message_type = data.get("type")
 
+    # Map whoseTurn (1 or 2) to player symbols ('X' or 'O')
+    turn_map = {1: 'X', 2: 'O'}
+
     if message_type == "ASSIGN_ID":
         client_id = data.get("client_id")
         player_id = data.get("player_symbol")
         print(f"\nAssigned ID: {client_id}, playing as {player_id}.")
         game_state = data.get("board", [])
-        if data.get("whoseTurn") == player_id:
+        if turn_map.get(data.get("whoseTurn")) == player_id:
             is_my_turn = True
             prompt_for_move(sock)  # Prompt for move immediately if it's this player's turn
     elif message_type == "JOIN":
@@ -41,7 +44,7 @@ def handle_server_message(data, sock):
         print(f"\n{data.get('message', 'A move was made.')}")
         game_state = data.get("board", [])
         print_board(game_state)
-        is_my_turn = data.get("whoseTurn") == player_id
+        is_my_turn = turn_map.get(data.get("whoseTurn")) == player_id
         if is_my_turn:
             prompt_for_move(sock)
     elif message_type == "WIN":
@@ -64,7 +67,7 @@ def handle_server_message(data, sock):
         print("\nGame state updated.")
         game_state = data.get("board", [])
         print_board(game_state)
-        is_my_turn = data.get("whoseTurn") == player_id
+        is_my_turn = turn_map.get(data.get("whoseTurn")) == player_id
     else:
         print("\nUnknown message type received:", data)
 
@@ -89,7 +92,6 @@ def prompt_for_move(sock):
             except ValueError:
                 print("\nInvalid input. Please enter row and column as numbers separated by a comma.")
                 prompt_for_move(sock)  # Re-prompt on invalid input
-    else: print("FAILURE OF IS MY TURN")
 
 def send_move(sock, position):
     try:
