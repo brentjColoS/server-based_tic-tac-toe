@@ -148,7 +148,11 @@ def handle_message(data, client_id, player_number, player_symbol):
         return {"type": "RESET", "message": "Game has been reset.", "board": game_state["board"], "whoseTurn": whoseTurn}
     elif message_type == MESSAGE_TYPES["CHAT"]:
         return {"type": "CHAT", "message": f"Player {player_number} ({player_symbol}) says: {data.get('message', '')}"}
+    elif message_type == MESSAGE_TYPES["QUIT"]:
+        handle_disconnection(client_id)
+        return {"type": "QUIT", "message": f"Player {player_number} ({player_symbol}) has quit the game.", "board": game_state["board"], "whoseTurn": whoseTurn}
     return {"type": "ERROR", "message": "Unknown message type.", "board": game_state["board"], "whoseTurn": whoseTurn}
+
 
 def reset_game():
     global game_state, whoseTurn
