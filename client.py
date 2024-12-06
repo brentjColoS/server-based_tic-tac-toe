@@ -7,15 +7,17 @@ is_my_turn = False  # Track if it's this player's turn
 client_id = None  # Unique ID assigned by the server
 player_id = None  # The role of this player ('X' or 'O')
 game_state = None  # Track the current game state
+stop_event = threading.Event()  # Event to signal thread termination
 
 def receive_messages(sock):
     global is_my_turn, game_state, player_id, client_id
     buffer = ""  # Buffer to store partial data
-    while True:
+    while not stop_event.is_set():
         try:
             data = sock.recv(1024).decode('utf-8')
             if not data:
                 print("Disconnected from the server.")
+                stop_event.set()  # Stop the thread if the connection is closed
                 break
             buffer += data  # Append received data to buffer
 
@@ -27,15 +29,15 @@ def receive_messages(sock):
                 except json.JSONDecodeError:
                     break  # Wait for more data if JSON is incomplete
         except Exception as e:
-            print(f"Error receiving message: {e}")
+            if not stop_event.is_set():  # Suppress errors during shutdown
+                print(f"Error receiving message: {e}")
             break
 
 def handle_server_message(data, sock):
     global is_my_turn, game_state, player_id, client_id
     message_type = data.get("type")
 
-    # Map whoseTurn (1 or 2) to player symbols ('X' or 'O')
-    turn_map = {1: 'X', 2: 'O'}
+    turn_map = {1: 'X', 2: 'O'}  # Map whoseTurn (1 or 2) to player symbols ('X' or 'O')
 
     if message_type == "ASSIGN_ID":
         client_id = data.get("client_id")
@@ -45,47 +47,13 @@ def handle_server_message(data, sock):
         if turn_map.get(data.get("whoseTurn")) == player_id:
             is_my_turn = True
             prompt_for_move(sock)
-    elif message_type == "JOIN":
-        if data.get("client_id") != client_id:
-            print(f"\n{data.get('message')}")
-    elif message_type == "MOVE":
-        print(f"\n{data.get('message', 'A move was made.')}")
-        game_state = data.get("board", [])
-        if turn_map.get(data.get("whoseTurn")) != player_id:
-            print_board(game_state)
-        is_my_turn = turn_map.get(data.get("whoseTurn")) == player_id
-        if is_my_turn:
-            prompt_for_move(sock)
-        else:
-            print("\nWaiting for the other player's move...")
-    elif message_type == "WIN":
-        print(f"\n{data.get('message', 'Game over.')}")
-        game_state = data.get("board", [])
-        print_board(game_state)
-        is_my_turn = False  # Game is over
-    elif message_type == "DRAW":
-        print(f"\n{data.get('message', 'It is a draw.')}")
-        game_state = data.get("board", [])
-        print_board(game_state)
-        is_my_turn = False  # Game is over
-    elif message_type == "ERROR":
-        print(f"\n{data.get('message', 'An error occurred.')}")
-        if is_my_turn:
-            prompt_for_move(sock)
-    elif message_type == "CHAT":
-        print(f"\n{data.get('message', '')}")
-    elif message_type == "STATE":
-        print("\nGame state updated.")
-        game_state = data.get("board", [])
-        print_board(game_state)
-        is_my_turn = turn_map.get(data.get("whoseTurn")) == player_id
     elif message_type == "QUIT":
         print("\nServer acknowledged quit request. Exiting game.")
-        threading.Event().wait(5)
+        stop_event.set()  # Signal thread to stop
         sock.close()
-        sys.exit()
+        sys.exit(0)  # Exit the program
     else:
-        print("\nUnknown message type received:", data)
+        print(f"Message from server: {data.get('message')}")
 
 def prompt_for_move(sock):
     global is_my_turn
@@ -95,13 +63,10 @@ def prompt_for_move(sock):
         if user_input.lower() == 'quit':
             print("\nQuitting the game...")
             send_quit(sock)
-            threading.Event().wait(1)
-            sock.close()
-            sys.exit(0)
+            return
         elif user_input.lower().startswith("chat:"):
             chat_message = user_input.split(":", 1)[1].strip()
             send_chat(sock, chat_message)
-            print("\nChat sent.")
             prompt_for_move(sock)
         else:
             try:
@@ -136,7 +101,10 @@ def send_quit(sock):
         sock.send(message.encode('utf-8'))
     except Exception as e:
         print(f"Error sending quit message: {e}")
-
+    finally:
+        stop_event.set()  # Signal thread to stop
+        sock.close()
+        sys.exit(0)
 
 def print_board(board):
     if board:
@@ -163,11 +131,13 @@ def main():
 
         threading.Thread(target=receive_messages, args=(sock,), daemon=True).start()
 
-        while True:
+        while not stop_event.is_set():
             threading.Event().wait(1)
 
     except Exception as e:
         print(f"Error connecting to server: {e}")
+    finally:
+        stop_event.set()
 
 if __name__ == "__main__":
     main()
