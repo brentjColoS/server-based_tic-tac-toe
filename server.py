@@ -95,12 +95,12 @@ def handle_disconnection(client_id):
         del player_roles[client_id]
 
     if len(clients) == 0:
-        # If all clients disconnected, clear the board and reset
-        reset_game(clear_board=True)
-        logging.info("All clients disconnected. Board cleared.")
+        # If all clients disconnected, reset everything
+        reset_game(clear_board=True, clear_roles=True)
+        logging.info("All clients disconnected. Game state cleared.")
     elif len(clients) == 1:
-        # If only one client remains, reassign them as Player 1
-        reset_game()
+        # If one client remains, reassign them as Player 1
+        reset_game(clear_board=True)
         remaining_client_id = list(clients.keys())[0]
         player_roles[remaining_client_id] = 1
         whoseTurn = 1
@@ -113,12 +113,12 @@ def handle_disconnection(client_id):
         }).encode('utf-8'))
         broadcast({
             "type": "RESET",
-            "message": f"{remaining_client_id} is now Player 1. Game reset.",
+            "message": f"Player 1 reassigned to {remaining_client_id}. Game reset.",
             "board": game_state["board"],
             "whoseTurn": whoseTurn
         })
     else:
-        reset_game()
+        reset_game(clear_board=True)
         broadcast({
             "type": "QUIT",
             "message": f"{client_id} has left the game. The game has been reset.",
@@ -152,7 +152,7 @@ def handle_message(data, client_id, player_number, player_symbol):
                             "board": game_state["board"],
                             "whoseTurn": None
                         })
-                        reset_game()
+                        reset_game(clear_board=True)
                         return
                     elif check_draw():
                         game_state["winner"] = "Draw"
@@ -162,7 +162,7 @@ def handle_message(data, client_id, player_number, player_symbol):
                             "board": game_state["board"],
                             "whoseTurn": None
                         })
-                        reset_game()
+                        reset_game(clear_board=True)
                         return
                     whoseTurn = 2 if whoseTurn == 1 else 1
                     return {
@@ -179,10 +179,12 @@ def handle_message(data, client_id, player_number, player_symbol):
         return {"type": "CHAT", "message": f"Player {player_number} ({player_symbol}) says: {data.get('message', '')}"}
     return {"type": "ERROR", "message": "Unknown message type.", "board": game_state["board"], "whoseTurn": whoseTurn}
 
-def reset_game(clear_board=False):
-    global game_state, whoseTurn
+def reset_game(clear_board=False, clear_roles=False):
+    global game_state, whoseTurn, player_roles
     if clear_board:
         game_state = {"board": [['#' for _ in range(3)] for _ in range(3)], "winner": None}
+    if clear_roles:
+        player_roles.clear()
     whoseTurn = 1
     broadcast({
         "type": "RESET",
