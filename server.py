@@ -133,6 +133,31 @@ def handle_disconnection(client_id):
 def handle_message(data, client_id, player_number, player_symbol):
     global whoseTurn
     message_type = data.get("type")
+
+    if message_type == "REASSIGN":
+        # Handle client reassignment as Player 1 (X)
+        new_client_id = data.get("client_id")
+        new_player_symbol = data.get("player_symbol")
+        if new_player_symbol == 'X':
+            logging.info(f"Reassigning {new_client_id} as Player 1 (X).")
+            if client_id in player_roles:
+                player_roles[client_id] = 1
+            if client_id in clients:
+                clients[new_client_id] = clients.pop(client_id)  # Update client mapping
+            return {
+                "type": "STATE",
+                "message": f"{new_client_id} is now Player 1 (X).",
+                "board": game_state["board"],
+                "whoseTurn": whoseTurn
+            }
+        else:
+            return {
+                "type": "ERROR",
+                "message": "Invalid reassignment request. Only Player 1 can be reassigned as X.",
+                "board": game_state["board"],
+                "whoseTurn": whoseTurn
+            }
+
     if message_type == MESSAGE_TYPES["MOVE"]:
         if whoseTurn != player_number:
             return {
@@ -179,8 +204,10 @@ def handle_message(data, client_id, player_number, player_symbol):
                     return {"type": "ERROR", "message": "Invalid move!", "board": game_state["board"], "whoseTurn": whoseTurn}
             except ValueError:
                 return {"type": "ERROR", "message": "Invalid position format!", "board": game_state["board"], "whoseTurn": whoseTurn}
+
     elif message_type == MESSAGE_TYPES["CHAT"]:
         return {"type": "CHAT", "message": f"Player {player_number} ({player_symbol}) says: {data.get('message', '')}"}
+
     return {"type": "ERROR", "message": "", "board": game_state["board"], "whoseTurn": whoseTurn}
 
 def reset_game(clear_board=False, clear_roles=False):
