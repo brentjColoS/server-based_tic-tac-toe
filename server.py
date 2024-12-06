@@ -177,7 +177,7 @@ def handle_message(data, client_id, player_number, player_symbol):
                 return {"type": "ERROR", "message": "Invalid position format!", "board": game_state["board"], "whoseTurn": whoseTurn}
     elif message_type == MESSAGE_TYPES["CHAT"]:
         return {"type": "CHAT", "message": f"Player {player_number} ({player_symbol}) says: {data.get('message', '')}"}
-    return {"type": "ERROR", "message": "Unknown message type.", "board": game_state["board"], "whoseTurn": whoseTurn}
+    return {"type": "ERROR", "message": "", "board": game_state["board"], "whoseTurn": whoseTurn}
 
 def reset_game(clear_board=False, clear_roles=False):
     global game_state, whoseTurn, player_roles

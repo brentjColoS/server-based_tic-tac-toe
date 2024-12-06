@@ -73,7 +73,6 @@ def handle_server_message(data, sock):
     elif message_type == "RESET":
         print("\nGame has been reset.")
         game_state = data.get("board", [])
-        print_board(game_state)
         is_my_turn = turn_map.get(data.get("whoseTurn")) == player_id
         if is_my_turn:
             prompt_for_move(sock)
