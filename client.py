@@ -81,6 +81,7 @@ def handle_server_message(data, sock):
         is_my_turn = turn_map.get(data.get("whoseTurn")) == player_id
     elif message_type == "QUIT":
         print("\nServer acknowledged quit request. Exiting game.")
+        threading.Event().wait(5)
         sock.close()
         sys.exit()
     else:
@@ -94,8 +95,9 @@ def prompt_for_move(sock):
         if user_input.lower() == 'quit':
             print("\nQuitting the game...")
             send_quit(sock)
+            threading.Event().wait(1)
             sock.close()
-            sys.exit()
+            sys.exit(0)
         elif user_input.lower().startswith("chat:"):
             chat_message = user_input.split(":", 1)[1].strip()
             send_chat(sock, chat_message)
@@ -130,7 +132,7 @@ def send_chat(sock, message):
 
 def send_quit(sock):
     try:
-        message = json.dumps({"type": "QUIT", "message": "Player quit the game."})
+        message = json.dumps({"type": "quit", "message": "Player quit the game."})
         sock.send(message.encode('utf-8'))
     except Exception as e:
         print(f"Error sending quit message: {e}")

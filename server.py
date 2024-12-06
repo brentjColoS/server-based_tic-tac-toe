@@ -84,7 +84,6 @@ def handle_client(client_socket, client_address):
         handle_disconnection(client_id)
 
 def handle_disconnection(client_id):
-    global whoseTurn
     if client_id in clients:
         del clients[client_id]
     if client_id in player_roles:
