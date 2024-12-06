@@ -47,6 +47,40 @@ def handle_server_message(data, sock):
         if turn_map.get(data.get("whoseTurn")) == player_id:
             is_my_turn = True
             prompt_for_move(sock)
+    elif message_type == "JOIN":
+        if data.get("client_id") != client_id:
+            print(f"\n{data.get('message')}")
+    elif message_type == "MOVE":
+        print(f"\n{data.get('message', 'A move was made.')}")
+        game_state = data.get("board", [])
+        if turn_map.get(data.get("whoseTurn")) != player_id:
+            print_board(game_state)
+        is_my_turn = turn_map.get(data.get("whoseTurn")) == player_id
+        if is_my_turn:
+            prompt_for_move(sock)
+        else:
+            print("\nWaiting for the other player's move...")
+    elif message_type == "WIN":
+        print(f"\n{data.get('message', 'Game over.')}")
+        game_state = data.get("board", [])
+        print_board(game_state)
+        is_my_turn = False  # Game is over
+    elif message_type == "DRAW":
+        print(f"\n{data.get('message', 'It is a draw.')}")
+        game_state = data.get("board", [])
+        print_board(game_state)
+        is_my_turn = False  # Game is over
+    elif message_type == "ERROR":
+        print(f"\n{data.get('message', 'An error occurred.')}")
+        if is_my_turn:
+            prompt_for_move(sock)
+    elif message_type == "CHAT":
+        print(f"\n{data.get('message', '')}")
+    elif message_type == "STATE":
+        print("\nGame state updated.")
+        game_state = data.get("board", [])
+        print_board(game_state)
+        is_my_turn = turn_map.get(data.get("whoseTurn")) == player_id
     elif message_type == "QUIT":
         print("\nServer acknowledged quit request. Exiting game.")
         stop_event.set()  # Signal thread to stop
@@ -67,6 +101,7 @@ def prompt_for_move(sock):
         elif user_input.lower().startswith("chat:"):
             chat_message = user_input.split(":", 1)[1].strip()
             send_chat(sock, chat_message)
+            print("\nChat sent.")
             prompt_for_move(sock)
         else:
             try:
