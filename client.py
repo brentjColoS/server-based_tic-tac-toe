@@ -53,10 +53,7 @@ def handle_server_message(data, sock):
     elif message_type == "RESET":
         print("\nGame has been reset.")
         game_state = data.get("board", [])
-        client_id = data.get("client_id", client_id)  # Update client_id if provided
-        player_id = 'X' if data.get("whoseTurn") == 1 else 'O'
-        is_my_turn = data.get("whoseTurn") == 1  # Player 1 always starts
-        send_reassignment(sock)  # Notify server of reassignment as Player 1
+        is_my_turn = turn_map.get(data.get("whoseTurn")) == player_id
         print_board(game_state)
         if is_my_turn:
             prompt_for_move(sock)
@@ -92,25 +89,12 @@ def handle_server_message(data, sock):
         print_board(game_state)
         is_my_turn = turn_map.get(data.get("whoseTurn")) == player_id
     elif message_type == "QUIT":
-        print("\nServer acknowledged quit request. Exiting game.")
+        print("\nServer has disconnected you. Game is resetting.")
         stop_event.set()  # Signal thread to stop
         sock.close()
         sys.exit(0)  # Exit the program
     else:
         print(f"Message from server: {data.get('message')}")
-
-def send_reassignment(sock):
-    """Notify the server of reassignment to player_1 (X)."""
-    try:
-        message = json.dumps({
-            "type": "REASSIGN",
-            "client_id": client_id,
-            "player_symbol": player_id
-        })
-        sock.send(message.encode('utf-8'))
-        print("\nNotified server of reassignment as Player 1 (X).")
-    except Exception as e:
-        print(f"Error sending reassignment message: {e}")
 
 def prompt_for_move(sock):
     global is_my_turn

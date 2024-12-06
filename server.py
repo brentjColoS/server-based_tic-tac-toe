@@ -90,45 +90,34 @@ def handle_client(client_socket, client_address):
 def handle_disconnection(client_id):
     global game_state, whoseTurn
 
+    logging.info(f"{client_id} disconnected.")
+    
+    # Remove the client from the lists
     if client_id in clients:
         del clients[client_id]
     if client_id in player_roles:
         del player_roles[client_id]
 
-    if len(clients) == 0:
-        # If all clients disconnected, reset everything
-        reset_game(clear_board=True, clear_roles=True)
-        logging.info("All clients disconnected. Game state cleared.")
-    elif len(clients) == 1:
-        # If one client remains, reassign them as Player 1
-        reset_game(clear_board=True)
-        remaining_client_id = list(clients.keys())[0]
-        player_roles[remaining_client_id] = 1
-        whoseTurn = 1
-        new_client_id = "player_1"
-        clients[new_client_id] = clients.pop(remaining_client_id)
-        time.sleep(0.1)  # Delay to allow reset processing
-        clients[remaining_client_id].send(json.dumps({
-            "type": "ASSIGN_ID",
-            "client_id": remaining_client_id,
-            "player_symbol": 'X',
-            "board": game_state["board"],
-            "whoseTurn": whoseTurn
-        }).encode('utf-8'))
-        broadcast({
-            "type": "RESET",
-            "message": f"Player 1 reassigned to {new_client_id}. Game reset.",
-            "board": game_state["board"],
-            "whoseTurn": whoseTurn
-        })
-    else:
-        reset_game(clear_board=True)
-        broadcast({
-            "type": "QUIT",
-            "message": f"{client_id} has left the game. The game has been reset.",
-            "board": game_state["board"],
-            "whoseTurn": whoseTurn
-        })
+    # Disconnect any remaining client
+    for remaining_client_id, client_socket in list(clients.items()):
+        try:
+            logging.info(f"Kicking {remaining_client_id} due to the other player's disconnection.")
+            client_socket.send(json.dumps({
+                "type": "QUIT",
+                "message": "Other player disconnected. The game is resetting."
+            }).encode('utf-8'))
+            client_socket.close()
+        except Exception as e:
+            logging.error(f"Failed to notify or close connection for {remaining_client_id}: {e}")
+        finally:
+            del clients[remaining_client_id]
+            if remaining_client_id in player_roles:
+                del player_roles[remaining_client_id]
+
+    # Reset the game board and roles
+    reset_game(clear_board=True, clear_roles=True)
+    logging.info("Game state reset after disconnection.")
+
 
 def handle_message(data, client_id, player_number, player_symbol):
     global whoseTurn
@@ -217,13 +206,8 @@ def reset_game(clear_board=False, clear_roles=False):
     if clear_roles:
         player_roles.clear()
     whoseTurn = 1
-    broadcast({
-        "type": "RESET",
-        "message": "Game has been reset.",
-        "board": game_state["board"],
-        "whoseTurn": whoseTurn
-    })
     logging.info("Game reset successfully.")
+
 
 def check_winner(symbol):
     for i in range(3):
