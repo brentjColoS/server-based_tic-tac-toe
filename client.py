@@ -98,6 +98,7 @@ def prompt_for_move(sock):
         user_input = input("\nEnter your move as row,col (type 'chat:<message>' to chat | type 'quit' to exit): ")
         if user_input.lower() == 'quit':
             print("Exiting the game.")
+            quit()
             sock.close()
             sys.exit()
         elif user_input.lower().startswith("chat:"):
@@ -131,6 +132,13 @@ def send_chat(sock, message):
         sock.send(chat_message.encode('utf-8'))
     except Exception as e:
         print(f"Error sending chat message: {e}")
+
+def quit(sock, message):
+    try:
+        message = json.dumps({"type": "quit", "message": message})
+        sock.send(message.encode('utf-8'))
+    except Exception as e:
+        print(f"Error sending move: {e}")
 
 def print_board(board):
     if board:
