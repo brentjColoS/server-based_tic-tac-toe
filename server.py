@@ -8,8 +8,8 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("server_log.log"),  # Log to a file named 'server.log'
-        logging.StreamHandler()            # Log to the console
+        logging.FileHandler("server_log.log"),
+        logging.StreamHandler()
     ]
 )
 
@@ -42,12 +42,13 @@ def handle_client(client_socket, client_address):
         }).encode('utf-8'))
         client_socket.close()
         return
+
     player_number = 1 if len(player_roles) == 0 else 2
     client_id = f"player_{player_number}"
     clients[client_id] = client_socket
     player_roles[client_id] = player_number
     player_symbol = 'X' if player_number == 1 else 'O'
-    # Notify the client of their assigned ID and role
+
     client_socket.send(json.dumps({
         "type": "ASSIGN_ID",
         "client_id": client_id,
@@ -55,12 +56,14 @@ def handle_client(client_socket, client_address):
         "board": game_state["board"],
         "whoseTurn": whoseTurn
     }).encode('utf-8'))
+
     broadcast({
         "type": "JOIN",
         "message": f"Player {player_number} joined as {player_symbol}.",
         "board": game_state["board"],
         "whoseTurn": whoseTurn
     })
+
     try:
         while True:
             message = client_socket.recv(1024).decode('utf-8')
@@ -85,6 +88,7 @@ def handle_client(client_socket, client_address):
 
 def handle_disconnection(client_id):
     global game_state, whoseTurn
+
     if client_id in clients:
         del clients[client_id]
     if client_id in player_roles:
@@ -94,8 +98,26 @@ def handle_disconnection(client_id):
         # If all clients disconnected, clear the board and reset
         reset_game(clear_board=True)
         logging.info("All clients disconnected. Board cleared.")
+    elif len(clients) == 1:
+        # If only one client remains, reassign them as Player 1
+        reset_game()
+        remaining_client_id = list(clients.keys())[0]
+        player_roles[remaining_client_id] = 1
+        whoseTurn = 1
+        clients[remaining_client_id].send(json.dumps({
+            "type": "ASSIGN_ID",
+            "client_id": remaining_client_id,
+            "player_symbol": 'X',
+            "board": game_state["board"],
+            "whoseTurn": whoseTurn
+        }).encode('utf-8'))
+        broadcast({
+            "type": "RESET",
+            "message": f"{remaining_client_id} is now Player 1. Game reset.",
+            "board": game_state["board"],
+            "whoseTurn": whoseTurn
+        })
     else:
-        # If clients are still connected, reset the game
         reset_game()
         broadcast({
             "type": "QUIT",
@@ -130,6 +152,7 @@ def handle_message(data, client_id, player_number, player_symbol):
                             "board": game_state["board"],
                             "whoseTurn": None
                         })
+                        reset_game()
                         return
                     elif check_draw():
                         game_state["winner"] = "Draw"
@@ -139,11 +162,12 @@ def handle_message(data, client_id, player_number, player_symbol):
                             "board": game_state["board"],
                             "whoseTurn": None
                         })
+                        reset_game()
                         return
                     whoseTurn = 2 if whoseTurn == 1 else 1
                     return {
                         "type": "MOVE",
-                        "message": f"Player {player_number} ({player_symbol}) moved to {position}.",
+                        "message": f"Player {player_number} ({player_symbol}) moved.",
                         "board": game_state["board"],
                         "whoseTurn": whoseTurn
                     }
@@ -151,16 +175,9 @@ def handle_message(data, client_id, player_number, player_symbol):
                     return {"type": "ERROR", "message": "Invalid move!", "board": game_state["board"], "whoseTurn": whoseTurn}
             except ValueError:
                 return {"type": "ERROR", "message": "Invalid position format!", "board": game_state["board"], "whoseTurn": whoseTurn}
-    elif message_type == MESSAGE_TYPES["RESET"]:
-        reset_game()
-        return {"type": "RESET", "message": "Game has been reset.", "board": game_state["board"], "whoseTurn": whoseTurn}
     elif message_type == MESSAGE_TYPES["CHAT"]:
         return {"type": "CHAT", "message": f"Player {player_number} ({player_symbol}) says: {data.get('message', '')}"}
-    elif message_type == MESSAGE_TYPES["QUIT"]:
-        handle_disconnection(client_id)
-        return {"type": "QUIT", "message": f"Player {player_number} ({player_symbol}) has quit the game.", "board": game_state["board"], "whoseTurn": whoseTurn}
     return {"type": "ERROR", "message": "Unknown message type.", "board": game_state["board"], "whoseTurn": whoseTurn}
-
 
 def reset_game(clear_board=False):
     global game_state, whoseTurn

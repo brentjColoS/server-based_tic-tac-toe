@@ -44,8 +44,8 @@ def handle_server_message(data, sock):
         player_id = data.get("player_symbol")
         print(f"\nAssigned ID: {client_id}, playing as {player_id}.")
         game_state = data.get("board", [])
-        if turn_map.get(data.get("whoseTurn")) == player_id:
-            is_my_turn = True
+        is_my_turn = turn_map.get(data.get("whoseTurn")) == player_id
+        if is_my_turn:
             prompt_for_move(sock)
     elif message_type == "JOIN":
         if data.get("client_id") != client_id:
@@ -70,6 +70,13 @@ def handle_server_message(data, sock):
         game_state = data.get("board", [])
         print_board(game_state)
         is_my_turn = False  # Game is over
+    elif message_type == "RESET":
+        print("\nGame has been reset.")
+        game_state = data.get("board", [])
+        print_board(game_state)
+        is_my_turn = turn_map.get(data.get("whoseTurn")) == player_id
+        if is_my_turn:
+            prompt_for_move(sock)
     elif message_type == "ERROR":
         print(f"\n{data.get('message', 'An error occurred.')}")
         if is_my_turn:
