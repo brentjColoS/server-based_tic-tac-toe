@@ -3,6 +3,7 @@ import threading
 import logging
 import json
 import traceback
+import time
 
 logging.basicConfig(
     level=logging.INFO,
@@ -104,6 +105,7 @@ def handle_disconnection(client_id):
         remaining_client_id = list(clients.keys())[0]
         player_roles[remaining_client_id] = 1
         whoseTurn = 1
+        time.sleep(0.1)  # Delay to allow reset processing
         clients[remaining_client_id].send(json.dumps({
             "type": "ASSIGN_ID",
             "client_id": remaining_client_id,
