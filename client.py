@@ -108,8 +108,12 @@ def prompt_for_move(sock):
         else:
             try:
                 row, col = map(int, user_input.split(','))
-                send_move(sock, [row, col])
-                is_my_turn = False  # Set to False after making the move
+                if 1 <= row <=3 and 1<= col <=3:
+                    send_move(sock, [row, col])
+                    is_my_turn = False  # Set to False after making the move
+                else:
+                    print("\nInvalid input. Please enter a row and column within range 1-3.")
+                    prompt_for_move(sock)
             except ValueError:
                 print("\nInvalid input. Please enter row and column as numbers separated by a comma.")
                 prompt_for_move(sock)  # Re-prompt on invalid input
