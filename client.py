@@ -95,24 +95,33 @@ def prompt_for_move(sock):
     global is_my_turn
     if is_my_turn:
         print_board(game_state)  # Display the board before asking for input
-        user_input = input("\nEnter your move as row,col (type 'chat:<message>' to chat | type 'quit' to exit): ")
-        if user_input.lower() == 'quit':
-            print("Exiting the game.")
-            sock.close()
-            sys.exit()
-        elif user_input.lower().startswith("chat:"):
-            chat_message = user_input.split(":", 1)[1].strip()
-            send_chat(sock, chat_message)
-            print("\nChat sent.")  # Optional message to confirm the chat was sent
-            prompt_for_move(sock)  # Re-prompt for input after chat
-        else:
-            try:
-                row, col = map(int, user_input.split(','))
-                send_move(sock, [row, col])
-                is_my_turn = False  # Set to False after making the move
-            except ValueError:
-                print("\nInvalid input. Please enter row and column as numbers separated by a comma.")
-                prompt_for_move(sock)  # Re-prompt on invalid input
+        while True:
+            user_input = input("\nEnter your move as row,col (type 'chat:<message>' to chat | type 'quit' to exit): ")
+            if user_input.lower() == 'quit':
+                print("Exiting the game.")
+                sock.close()
+                sys.exit()
+            elif user_input.lower().startswith("chat:"):
+                chat_message = user_input.split(":", 1)[1].strip()
+                send_chat(sock, chat_message)
+                print("\nChat sent.")  # Optional message to confirm the chat was sent
+            else:
+                try:
+                    # Validate input format
+                    row, col = map(int, user_input.split(','))
+                    if 1 <= row <= 3 and 1 <= col <= 3:  # Check if within board bounds
+                        board_row, board_col = row - 1, col - 1  # Convert to 0-based indexing
+                        if game_state["board"][board_row][board_col] == '#':  # Check if cell is empty
+                            send_move(sock, [row, col])
+                            is_my_turn = False  # Set to False after making the move
+                            break
+                        else:
+                            print("\nInvalid move. The cell is already occupied. Try again.")
+                    else:
+                        print("\nInvalid move. Row and column must be between 1 and 3. Try again.")
+                except ValueError:
+                    print("\nInvalid input. Please enter row and column as numbers separated by a comma.")
+
 
 def send_move(sock, position):
     try:
