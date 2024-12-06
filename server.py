@@ -166,6 +166,14 @@ def handle_message(data, client_id, player_number, player_symbol):
             "board": game_state["board"],
             "whoseTurn": whoseTurn
         }
+    elif message_type == MESSAGE_TYPES["EXIT"]:
+        close_game()
+        return {
+            "type": "EXIT",
+            "message": "The game is closing now.",
+            "board": game_state["board"],
+            "whoseTurn": whoseTurn
+        }
     return {
         "type": "ERROR",
         "message": "Unknown message type.",
