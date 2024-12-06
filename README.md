@@ -4,21 +4,26 @@ Repository for CS457 Semester-long project: Tic Tac Toe based on server-client c
 ## How to Play:
 1. **Start the server:** Run the `server.py` script in the terminal.
    - Example: `python server.py -p 12345`
-   
+   - **Note:** The server log (`server_log.log`) will reset every time the server starts.
+
 2. **Connect clients:** Run the `client.py` script on two different machines or terminals, specifying the server's IP address and port.
    - Example: `python client.py -i SERVER_IP -p 12345`
 
-3. **Join the game:** Each client sends a join message to the server upon connection. The server assigns each player an ID ("X" or "O").
+3. **Join the game:** Each client connects to the server and is assigned an ID and role ("X" or "O") based on the order of connection.
 
-4. **Play the game:** Players take turns entering their moves by specifying row and column positions (e.g., "1 2"). The first player to get three in a row (vertically, horizontally, or diagonally) wins!
+4. **Play the game:** Players take turns entering their moves by specifying row and column positions (e.g., "1,2"). The first player to get three in a row (vertically, horizontally, or diagonally) wins!
 
 5. **Chat:** Players can communicate with each other via chat messages. These messages are sent to all connected clients.
 
-6. **Game Over:** Once a player wins or the game ends in a draw, the server announces the outcome. Players are then offered the option to start a new game or quit.
+6. **Game Over:** Once a player wins or the game ends in a draw, the server announces the outcome. The game board resets, and players can start a new game.
+
+7. **Disconnection Handling:**
+   - If a player disconnects, the other player is also disconnected, and the board resets.
+   - New players can then connect to a fresh board.
 
 ## Technologies Used:
-* Python
-* Sockets
+- Python
+- Sockets
 
 ## Game Message Protocol
 
@@ -51,50 +56,48 @@ Messages are formatted as JSON objects with the following fields:
 4. **Quit**
    - **Type**: `quit`
    - **Example**: `{"type": "quit"}`
-   - **Response**: A notification message indicating that the client has left the game.
+   - **Response**: A notification message indicating that the client has left the game. The server resets the game board and disconnects all players.
 
-5. **State**
-   - **Type**: `state`
-   - **Response**: Sends the current game state to all clients, including the board and which player's turn it is.
+5. **Reset**
+   - **Type**: `reset`
+   - **Response**: The server announces that the game has been reset and provides a fresh game board.
 
 6. **Win**
    - **Type**: `win`
    - **Message Field**: `message` (indicating that a player has won the game)
    - **Example**: `{"type": "win", "message": "Player X wins!"}`
-   - **Response**: A notification announcing the winner.
+   - **Response**: A notification announcing the winner. The game resets after a win.
 
 7. **Draw**
    - **Type**: `draw`
    - **Message Field**: `message` (indicating that the game has ended in a draw)
    - **Example**: `{"type": "draw", "message": "It's a draw!"}`
-   - **Response**: A notification announcing that the game is a draw.
+   - **Response**: A notification announcing that the game is a draw. The game resets after a draw.
+
+8. **Reassign**
+   - **Type**: `reassign`
+   - **Fields**: `client_id` (new player ID), `player_symbol` (new symbol, e.g., "X")
+   - **Example**: `{"type": "reassign", "client_id": "player_1", "player_symbol": "X"}`
+   - **Response**: Updates the client and server with the reassigned player information.
 
 ### Connection Management
-- The server maintains a list of connected clients and their associated game states.
-- Each player is assigned a unique identifier ("X" or "O") to manage turns and moves.
-- The game ensures that only the current player can make a move. Players take turns, and the server tracks whose turn it is.
+- The server tracks all connected clients and their roles ("X" or "O").
+- If one client disconnects, the other client is also disconnected, and the board resets for new players to join.
 
 ### Game State Management
-- The server tracks the game board (3x3 grid) and updates it with each move.
-- If a player wins (by getting three in a row horizontally, vertically, or diagonally), the server announces the winner.
-- If the game ends in a draw (no empty spaces left and no winner), the server announces a draw.
+- The server maintains a 3x3 game board and updates it with each move.
+- After a win or draw, the game resets to a fresh state.
 
 ### Turn Management
-- Players take turns making moves, which are synchronized across all clients. Each player must wait for their turn to make a move.
-- The server manages whose turn it is and updates the game state accordingly.
-
-### User Interface
-- The server sends regular updates to the clients, including the current game board, whose turn it is, and any game outcomes (win or draw).
-- The client displays the game board and prompts the player for their next move (in the form of row and column coordinates).
-- Players are notified when the game ends, either with a win or a draw, and are given the option to start a new game or quit.
+- The server manages whose turn it is and ensures only the current player can make a move.
+- If a player attempts an invalid move (e.g., placing on a taken spot), the client prompts the player to try again.
 
 ### Example of Communication Flow:
-1. **Client A** connects to the server and sends a `join` message.
-2. The server assigns Player "X" to Client A and sends a `state` message with an empty board and "X's" turn.
-3. **Client A** sends a `move` message with the coordinates `[0, 0]`, placing "X" on the board.
-4. The server updates the board and sends the new game state to both clients.
-5. **Client B** (Player "O") moves next, and the game continues.
-6. If a player wins or the game ends in a draw, the server sends a `win` or `draw` message to all clients.
+1. **Client A** connects to the server and is assigned "Player 1" (X).
+2. **Client B** connects and is assigned "Player 2" (O).
+3. Players take turns making moves.
+4. The server announces a win, draw, or reset based on the game outcome.
+5. If a player disconnects, the game resets, and the remaining player is disconnected.
 
 ---
 
@@ -104,7 +107,7 @@ To run the server, navigate to the project directory and execute the following c
 ```bash
 python server.py -p PORT
 ```
-This will start the server, listening for connections on the specified port.
+This will start the server, listening for connections on the specified port. The log file will reset each time the server starts.
 
 ### Client
 To run the client, execute the following command:
