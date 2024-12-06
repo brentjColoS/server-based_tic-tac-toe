@@ -167,7 +167,7 @@ def handle_message(data, client_id, player_number, player_symbol):
                     whoseTurn = 2 if whoseTurn == 1 else 1
                     return {
                         "type": "MOVE",
-                        "message": f"Player {player_number} ({player_symbol}) moved.",
+                        "message": f"Player {player_number} ({player_symbol}) moved to {position}.",
                         "board": game_state["board"],
                         "whoseTurn": whoseTurn
                     }
