@@ -117,8 +117,13 @@ def prompt_for_move(sock):
             try:
                 row, col = map(int, user_input.split(','))
                 if 1 <= row <= 3 and 1 <= col <= 3:
-                    send_move(sock, [row, col])
-                    is_my_turn = False
+                    board_row, board_col = row - 1, col -1
+                    if game_state[board_row][board_col] != '#':
+                        print("\nThat spot is already taken. Try again.")
+                        prompt_for_move(sock)
+                    else:
+                        send_move(sock, [row, col])
+                        is_my_turn = False
                 else:
                     print("\nInvalid input. Please enter a row and column within range 1-3.")
                     prompt_for_move(sock)

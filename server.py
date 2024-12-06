@@ -9,7 +9,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("server_log.log"),
+        logging.FileHandler("server_log.log", mode='w'),
         logging.StreamHandler()
     ]
 )
