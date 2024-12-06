@@ -206,7 +206,14 @@ def reset_game(clear_board=False, clear_roles=False):
     if clear_roles:
         player_roles.clear()
     whoseTurn = 1
+    broadcast({
+        "type": "RESET",
+        "message": "Game has been reset. Player 1 (X) starts.",
+        "board": game_state["board"],
+        "whoseTurn": whoseTurn
+    })
     logging.info("Game reset successfully.")
+
 
 
 def check_winner(symbol):

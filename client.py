@@ -53,10 +53,13 @@ def handle_server_message(data, sock):
     elif message_type == "RESET":
         print("\nGame has been reset.")
         game_state = data.get("board", [])
-        is_my_turn = turn_map.get(data.get("whoseTurn")) == player_id
+        client_id = data.get("client_id", client_id)  # Update client_id if provided
+        player_id = 'X' if data.get("whoseTurn") == 1 else 'O'
+        is_my_turn = data.get("whoseTurn") == 1  # Player 1 always starts
         print_board(game_state)
         if is_my_turn:
             prompt_for_move(sock)
+
     elif message_type == "MOVE":
         print(f"\n{data.get('message', 'A move was made.')}")
         game_state = data.get("board", [])
