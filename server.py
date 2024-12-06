@@ -84,16 +84,25 @@ def handle_client(client_socket, client_address):
         handle_disconnection(client_id)
 
 def handle_disconnection(client_id):
+    global game_state, whoseTurn
     if client_id in clients:
         del clients[client_id]
     if client_id in player_roles:
         del player_roles[client_id]
-    broadcast({
-        "type": "QUIT",
-        "message": f"{client_id} has left the game.",
-        "board": game_state["board"],
-        "whoseTurn": whoseTurn
-    })
+
+    if len(clients) == 0:
+        # If all clients disconnected, clear the board and reset
+        reset_game(clear_board=True)
+        logging.info("All clients disconnected. Board cleared.")
+    else:
+        # If clients are still connected, reset the game
+        reset_game()
+        broadcast({
+            "type": "QUIT",
+            "message": f"{client_id} has left the game. The game has been reset.",
+            "board": game_state["board"],
+            "whoseTurn": whoseTurn
+        })
 
 def handle_message(data, client_id, player_number, player_symbol):
     global whoseTurn
@@ -153,11 +162,17 @@ def handle_message(data, client_id, player_number, player_symbol):
     return {"type": "ERROR", "message": "Unknown message type.", "board": game_state["board"], "whoseTurn": whoseTurn}
 
 
-def reset_game():
+def reset_game(clear_board=False):
     global game_state, whoseTurn
-    game_state = {"board": [['#' for _ in range(3)] for _ in range(3)], "winner": None}
+    if clear_board:
+        game_state = {"board": [['#' for _ in range(3)] for _ in range(3)], "winner": None}
     whoseTurn = 1
-    broadcast({"type": "RESET", "message": "Game has been reset.", "board": game_state["board"], "whoseTurn": whoseTurn})
+    broadcast({
+        "type": "RESET",
+        "message": "Game has been reset.",
+        "board": game_state["board"],
+        "whoseTurn": whoseTurn
+    })
     logging.info("Game reset successfully.")
 
 def check_winner(symbol):
