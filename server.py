@@ -105,6 +105,8 @@ def handle_disconnection(client_id):
         remaining_client_id = list(clients.keys())[0]
         player_roles[remaining_client_id] = 1
         whoseTurn = 1
+        new_client_id = "player_1"
+        clients[new_client_id] = clients.pop(remaining_client_id)
         time.sleep(0.1)  # Delay to allow reset processing
         clients[remaining_client_id].send(json.dumps({
             "type": "ASSIGN_ID",
@@ -115,7 +117,7 @@ def handle_disconnection(client_id):
         }).encode('utf-8'))
         broadcast({
             "type": "RESET",
-            "message": f"Player 1 reassigned to {remaining_client_id}. Game reset.",
+            "message": f"Player 1 reassigned to {new_client_id}. Game reset.",
             "board": game_state["board"],
             "whoseTurn": whoseTurn
         })
