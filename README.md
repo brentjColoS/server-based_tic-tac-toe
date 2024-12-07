@@ -101,6 +101,11 @@ Messages are formatted as JSON objects with the following fields:
 
 ---
 
+### Security Flaws
+   The current implementation of the server-based Tic Tac Toe game has several security vulnerabilities that could be addressed in future iterations. First, the server lacks authentication for clients, making it possible for unauthorized users to join the game. This could be addressed by implementing an authentication mechanism, such as requiring a username and password or using tokens for client verification. Second, communication between the server and clients is not encrypted, which exposes the system to eavesdropping and tampering. This could be resolved by using a secure communication protocol, such as TLS. Third, there is no protection against denial-of-service (DoS) attacks, allowing a malicious client to flood the server with invalid messages and disrupt gameplay. Implementing rate limiting and message validation would mitigate this risk. Lastly, the lack of input sanitization and validation leaves the server vulnerable to unexpected or malformed data, which could lead to crashes or exploits. Future iterations could include stricter validation of client messages to ensure they conform to the expected format and logic.
+
+---
+
 ## Running the Game
 ### Server
 To run the server, navigate to the project directory and execute the following command:
