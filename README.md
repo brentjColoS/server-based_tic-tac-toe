@@ -121,10 +121,10 @@ python client.py -i SERVER_IP -p PORT
 ```
 This will connect the client to the server at the specified IP address and port.
 
-### Roadmap for Future Development
+## Roadmap for Future Development
    In future iterations, the server-based Tic Tac Toe game can be enhanced with additional features and improved functionality. A graphical user interface (GUI) could replace the text-based UI for a more engaging user experience. Secure communication protocols, such as TLS, could be implemented to encrypt data between the server and clients, addressing security vulnerabilities. Expanding beyond two-player functionality, a spectator mode or support for multiple concurrent games could increase the game’s usability. Advanced features like persistent player profiles, a scoring system, or AI opponents could further enrich the gameplay. Additionally, optimizing the server for scalability and implementing robust error handling will make the game more resilient for broader use cases.
 
-### Retrospective
+## Retrospective
 
 #### What Went Right
    The project successfully implemented a functional server-client Tic Tac Toe game with synchronized game states and robust disconnection handling. The reset mechanism ensures that new games start with a clean slate, and the message protocol facilitates smooth communication between server and clients. Adding features like move validation and chat functionality significantly enhanced the overall user experience.
